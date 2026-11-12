@@ -1,0 +1,10 @@
+export const APP_NAME = 'AgriPOS';
+export const API_VERSION = '/api/v1';
+export * from './calculations';
+export * from './permissions';
+export * from './schemas';
+export * from './desktop';
+export * from './business';
+export * from './offline';
+export * from './reports';
+export * from './csv';

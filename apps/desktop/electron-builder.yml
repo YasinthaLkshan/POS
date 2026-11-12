@@ -1,0 +1,26 @@
+appId: lk.agripos.desktop
+productName: AgriPOS
+directories:
+  output: release
+files:
+  - out/**/*
+  - package.json
+extraResources:
+  - from: ../../supabase/migrations
+    to: migrations
+asar: true
+asarUnpack:
+  - '**/node_modules/better-sqlite3/**/*'
+# better-sqlite3 13 ships Node-API prebuilds. Rebuilding it through electron/rebuild
+# incorrectly invokes node-gyp; validate the shipped ABI-stable binary instead.
+npmRebuild: false
+win:
+  icon: resources/icon.ico
+  signAndEditExecutable: true
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true

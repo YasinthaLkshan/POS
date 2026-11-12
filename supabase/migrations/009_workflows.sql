@@ -1,0 +1,11 @@
+ALTER TABLE purchases DROP CONSTRAINT purchases_status_check;
+ALTER TABLE purchases ADD CHECK(status IN ('draft','submitted','approved','ordered','sent','partial','received','cancelled'));
+ALTER TABLE purchases ADD COLUMN invoice_number text NOT NULL DEFAULT '';
+ALTER TABLE purchases ADD COLUMN due_date date;
+ALTER TABLE suppliers ADD COLUMN active boolean NOT NULL DEFAULT true;
+ALTER TABLE customers ADD COLUMN active boolean NOT NULL DEFAULT true;
+ALTER TABLE customers ADD COLUMN credit_enabled boolean NOT NULL DEFAULT true;
+ALTER TABLE expenses ADD COLUMN paid_from text NOT NULL DEFAULT 'bank' CHECK(paid_from IN ('cash','bank'));
+ALTER TABLE expenses ADD COLUMN terminal_id uuid;
+ALTER TABLE expenses ADD COLUMN voided_at timestamptz;
+ALTER TABLE expenses ADD COLUMN void_reason text;

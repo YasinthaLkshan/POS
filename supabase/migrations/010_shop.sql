@@ -1,0 +1,10 @@
+ALTER TABLE shops ADD COLUMN email text NOT NULL DEFAULT '';
+ALTER TABLE shops ADD COLUMN registration_number text NOT NULL DEFAULT '';
+ALTER TABLE shops ADD COLUMN tax_number text NOT NULL DEFAULT '';
+ALTER TABLE shops ADD COLUMN default_tax_bps integer NOT NULL DEFAULT 0 CHECK(default_tax_bps BETWEEN 0 AND 10000);
+ALTER TABLE shops ADD COLUMN invoice_prefix text NOT NULL DEFAULT 'AGR';
+ALTER TABLE shops ADD COLUMN logo_path text;
+ALTER TABLE sales ADD COLUMN invoice_number text;
+UPDATE sales SET invoice_number='AGR-'||upper(id::text);
+ALTER TABLE sales ALTER COLUMN invoice_number SET NOT NULL;
+CREATE UNIQUE INDEX sale_invoice_number ON sales(shop_id,invoice_number);

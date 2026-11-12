@@ -1,0 +1,16 @@
+node_modules/
+.cache/
+dist/
+out/
+release/
+coverage/
+test-results/
+playwright-report/
+.env
+.env.*
+!.env.example
+*.sqlite*
+*.log
+secrets/
+*service-account*.json
+*firebase-adminsdk*.json
