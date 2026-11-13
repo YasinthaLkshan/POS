@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Printer, FileDown, Undo2 } from 'lucide-react';
 import { money, quantity, decimalToInteger } from '@agripos/shared';
@@ -13,10 +13,22 @@ import { shortcuts } from '../services/shortcuts';
 interface Receipt extends Sale {
   invoice_number?: string;
   cashier: string;
+  subtotal: number;
   tax: number;
   discount: number;
+  bill_discount?: number;
   cash_tendered: number;
   change: number;
+  customer?: {
+    id: string;
+    name: string;
+    kind: 'registered' | 'driver' | 'walk_in';
+    phone: string;
+    driver_code: string | null;
+    lorry_number: string;
+    factory: string | null;
+  } | null;
+  installments?: { id: string; seq: number; due_date: string; amount: number; remaining: number }[];
   shop: { name: string; address: string; phone: string; receipt_footer: string };
   lines: {
     id: string;
@@ -25,6 +37,9 @@ interface Receipt extends Sale {
     returned: number;
     unit_price: number;
     total: number;
+    discount: number;
+    auto_discount?: number;
+    unit?: string;
   }[];
   outstanding: number;
   returns: {
@@ -90,6 +105,36 @@ export function Sales() {
                       Invoice {receipt.data.invoice_number ?? receipt.data.id} ·{' '}
                       {displayDate(receipt.data.created_at)} · {receipt.data.cashier}
                     </small>
+                    <small className="block">
+                      {receipt.data.customer ? (
+                        <>
+                          {receipt.data.customer.kind === 'driver'
+                            ? 'Lorry driver'
+                            : 'Credit customer'}
+                          :{' '}
+                          <Link
+                            to={
+                              receipt.data.customer.kind === 'driver'
+                                ? `/drivers?id=${receipt.data.customer.id}`
+                                : `/credit?customer=${receipt.data.customer.id}`
+                            }
+                          >
+                            {receipt.data.customer.name}
+                          </Link>
+                          {receipt.data.customer.driver_code
+                            ? ` (${receipt.data.customer.driver_code})`
+                            : ''}
+                          {receipt.data.customer.factory
+                            ? ` · ${receipt.data.customer.factory}`
+                            : ''}
+                          {receipt.data.customer.lorry_number
+                            ? ` · ${receipt.data.customer.lorry_number}`
+                            : ''}
+                        </>
+                      ) : (
+                        'Walk-in customer'
+                      )}
+                    </small>
                   </div>
                   <button className="text-btn" onClick={() => setParams({})}>
                     Close preview
@@ -99,29 +144,121 @@ export function Sales() {
                   <thead>
                     <tr>
                       <th>Item</th>
-                      <th>Quantity</th>
-                      <th>Unit price</th>
-                      <th>Total</th>
+                      <th className="numeric">Quantity</th>
+                      <th className="numeric">Unit price</th>
+                      <th className="numeric">Discount</th>
+                      <th className="numeric">Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {receipt.data.lines.map((l) => (
                       <tr key={l.id}>
-                        <td>{l.name}</td>
-                        <td>{quantity(l.quantity)}</td>
-                        <td>{money(l.unit_price)}</td>
-                        <td>{money(l.total)}</td>
+                        <td>
+                          {l.name}
+                          {!!l.auto_discount && (
+                            <small className="block discount-note">
+                              Driver discount {money(l.auto_discount)}
+                            </small>
+                          )}
+                        </td>
+                        <td className="numeric">
+                          {quantity(l.quantity)} {l.unit}
+                        </td>
+                        <td className="numeric">{money(l.unit_price)}</td>
+                        <td className="numeric">{l.discount ? money(l.discount) : '—'}</td>
+                        <td className="numeric">{money(l.total)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                <div className="receipt-summary">
-                  <span>
-                    Tax {money(receipt.data.tax)} · Discount {money(receipt.data.discount)} · Credit{' '}
-                    {money(receipt.data.credit)} · Change {money(receipt.data.change)}
-                  </span>
-                  <strong>Total {money(receipt.data.total)}</strong>
-                </div>
+                {(() => {
+                  const r = receipt.data;
+                  const driver = r.lines.reduce((s, l) => s + (l.auto_discount ?? 0), 0),
+                    bill = r.bill_discount ?? 0,
+                    paid = r.total - r.credit;
+                  return (
+                    <div className="receipt-totals">
+                      <div>
+                        <span>Subtotal</span>
+                        <span>{money(r.subtotal)}</span>
+                      </div>
+                      {driver > 0 && (
+                        <div>
+                          <span>Driver discount</span>
+                          <span>−{money(driver)}</span>
+                        </div>
+                      )}
+                      {r.discount - driver - bill > 0 && (
+                        <div>
+                          <span>Item discounts</span>
+                          <span>−{money(r.discount - driver - bill)}</span>
+                        </div>
+                      )}
+                      {bill > 0 && (
+                        <div>
+                          <span>Bill discount</span>
+                          <span>−{money(bill)}</span>
+                        </div>
+                      )}
+                      {r.tax > 0 && (
+                        <div>
+                          <span>Tax</span>
+                          <span>{money(r.tax)}</span>
+                        </div>
+                      )}
+                      <div className="grand">
+                        <span>Total</span>
+                        <strong>{money(r.total)}</strong>
+                      </div>
+                      <div>
+                        <span>Paid at sale</span>
+                        <span>{money(paid)}</span>
+                      </div>
+                      {r.change > 0 && (
+                        <div>
+                          <span>Change</span>
+                          <span>{money(r.change)}</span>
+                        </div>
+                      )}
+                      {r.credit > 0 && (
+                        <div>
+                          <span>Credit</span>
+                          <strong>{money(r.credit)}</strong>
+                        </div>
+                      )}
+                      <div>
+                        <span>Status</span>
+                        <Badge
+                          tone={
+                            r.status === 'returned' ? 'neutral' : r.credit ? 'warning' : 'success'
+                          }
+                        >
+                          {r.status === 'returned'
+                            ? 'Returned'
+                            : !r.credit
+                              ? 'Paid'
+                              : r.credit === r.total
+                                ? 'Credit'
+                                : 'Part paid / credit'}
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                })()}
+                {!!receipt.data.installments?.length && (
+                  <div className="receipt-installments">
+                    <strong>
+                      {receipt.data.installments.length > 1 ? 'Installments' : 'Repayment due'}
+                    </strong>
+                    {receipt.data.installments.map((i) => (
+                      <span key={i.id}>
+                        {receipt.data!.installments!.length > 1 ? `${i.seq}. ` : ''}
+                        {displayDate(i.due_date)} · {money(i.amount)}
+                        {i.remaining < i.amount ? ` · ${money(i.remaining)} remaining` : ''}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div className="inline receipt-actions">
                   <button id="print-receipt-button" className="btn" onClick={() => print(false)}>
                     <Printer size={16} />
@@ -157,7 +294,7 @@ export function Sales() {
                   </div>
                 )}
                 {!!receipt.data.credit && (
-                  <p>
+                  <p className="receipt-footer strong">
                     Outstanding on this invoice:{' '}
                     {money(receipt.data.outstanding ?? receipt.data.credit)}
                   </p>
@@ -178,9 +315,15 @@ export function Sales() {
               title: 'Invoice',
               value: (r) => (
                 <button className="text-btn" onClick={() => setParams({ id: r.id })}>
-                  #{r.id.slice(0, 8).toUpperCase()}
+                  {r.invoice_number ?? `#${r.id.slice(0, 8).toUpperCase()}`}
                 </button>
               ),
+            },
+            {
+              key: 'customer',
+              title: 'Customer',
+              value: (r) => r.customer_name || 'Walk-in',
+              sort: (r) => r.customer_name ?? '',
             },
             {
               key: 'date',
@@ -188,13 +331,29 @@ export function Sales() {
               value: (r) => displayDate(r.created_at),
               sort: (r) => r.created_at,
             },
-            { key: 'total', title: 'Total', value: (r) => money(r.total), sort: (r) => r.total },
-            { key: 'credit', title: 'Initial credit', value: (r) => money(r.credit) },
+            {
+              key: 'total',
+              title: 'Total',
+              align: 'end',
+              value: (r) => money(r.total),
+              sort: (r) => r.total,
+            },
+            { key: 'credit', title: 'Initial credit', align: 'end', value: (r) => money(r.credit) },
             {
               key: 'status',
               title: 'Status',
               value: (r) => (
-                <Badge tone={r.status === 'returned' ? 'warning' : 'success'}>{r.status}</Badge>
+                <Badge
+                  tone={r.status === 'returned' ? 'neutral' : r.credit ? 'warning' : 'success'}
+                >
+                  {r.status === 'returned'
+                    ? 'Returned'
+                    : !r.credit
+                      ? 'Paid'
+                      : r.credit === r.total
+                        ? 'Credit'
+                        : 'Mixed'}
+                </Badge>
               ),
             },
           ]}

@@ -16,11 +16,15 @@ const bridge: DesktopBridge = {
     sandboxed: process.sandboxed,
   }),
   configure: (input) => ipcRenderer.invoke('connection:configure', input),
+  backupStatus: () => ipcRenderer.invoke('backup:status'),
+  backupNow: () => ipcRenderer.invoke('backup:run'),
   login: (input) => ipcRenderer.invoke('auth:login', input),
   logout: () => ipcRenderer.invoke('auth:logout'),
   changePassword: (input) => ipcRenderer.invoke('auth:password', input),
   request: (input) => ipcRenderer.invoke('api:request', input),
   printers: () => ipcRenderer.invoke('printer:list'),
   printReceipt: (options) => ipcRenderer.invoke('printer:receipt', options),
+  printPaymentReceipt: (options) => ipcRenderer.invoke('printer:payment', options),
+  printDocument: (options) => ipcRenderer.invoke('printer:document', options),
 };
 contextBridge.exposeInMainWorld('desktop', Object.freeze(bridge));

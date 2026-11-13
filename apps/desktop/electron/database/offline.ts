@@ -249,6 +249,8 @@ export class OfflineStore {
     if (
       sale.terminalId !== grant.terminalId ||
       sale.customerId ||
+      sale.creditCustomer ||
+      sale.schedule ||
       sale.parkedId ||
       sale.dueDate ||
       sale.payments.length !== 1 ||

@@ -5,18 +5,21 @@
 ```mermaid
 flowchart LR
   R[React renderer] -->|Restricted typed IPC| M[Sandboxed preload / Electron main]
-  M -->|Bearer token over HTTPS| A[Express API]
+  M -->|Bearer token on 127.0.0.1| A[Embedded Express API]
   M --> L[(SQLite encrypted payloads)]
   M --> P[Windows printers / PDF]
   M --> I[(Local desktop images)]
-  A --> D[(Neon PostgreSQL: business data, account hashes and sessions)]
+  A -->|Shop network| D[(PostgreSQL on the main shop computer)]
+  D -.->|pg_dump / pg_restore every 30 min when online| N[(Neon cloud backup)]
 ```
+
+Every till runs its own embedded API. All of them connect to one PostgreSQL database on the main shop computer, so an internet outage does not affect selling, credit, returns, purchasing, stock or reports, and stock and credit checks stay consistent across tills. The main computer's Electron process saves `pg_dump` files and replaces the Neon copy with `pg_restore --clean --single-transaction`, refusing targets that hold another shop or newer activity. A till configured with a Neon URL directly still works as before, without backups.
 
 React handles navigation, forms, tables, charts and client query caching. It has no Node.js, filesystem, raw IPC, database credentials or access-token API. The preload exposes only the functions declared in `packages/shared/src/desktop.ts`.
 
 Electron main validates IPC senders and schemas, stores API sessions using Windows secure storage, makes API requests, and controls file dialogs and printing. Native SQLite databases and image files live under Electron's `userData` directory. One database journals uncertain online checkouts; a separate store owns offline grants, cached stock, receipts and a durable synchronization queue.
 
-The backend verifies opaque session tokens against hashed entries in Neon and obtains role/shop membership from `staff`. Passwords use salted scrypt hashes. Internal UUIDs and financial foreign keys remain unchanged. All business queries use the resulting shop ID. Only the trusted API holds Neon credentials.
+The backend verifies opaque session tokens against hashed entries in the shop database and obtains role/shop membership from `staff`. Passwords use salted scrypt hashes. Internal UUIDs and financial foreign keys remain unchanged. All business queries use the resulting shop ID. Database credentials stay in Electron main (Windows secure storage) and the embedded API; the renderer never receives them.
 
 ## Transactions
 
@@ -34,6 +37,10 @@ Amounts use integer LKR cents; quantities use integer thousandths; tax rates use
 - Finance: invoice repayment allocations, customer/supplier ledgers, expenses and cash sessions.
 - Reporting: business-date aggregates, current balances/stock, exports, notifications and audit activity.
 - Sync: terminal authorization, expiring grants, durable incoming receipts and explicit conflict reconciliation.
+- Drivers and credit: factories, lorry drivers, quick credit records, per-invoice installment schedules, installment-level repayment allocation and the due list (`modules/drivers`, `modules/credit`).
+- Daily business: one `businessSummary` (`modules/reporting/daily.ts`) feeds the dashboard, Daily business page, end-of-day print and reports, so figures always agree.
+
+Credit, schedule, allocation and discount arithmetic lives in `packages/shared/src/credit.ts` and is used by both the renderer previews and the server.
 
 `app.ts` binds HTTP routes to these modules. Errors share an envelope and request ID. Tests use the same services and migrations as production. The E2E Auth fixture lives exclusively in `scripts/test-server.ts` and is not bundled into the server.
 

@@ -22,6 +22,10 @@ import {
   Cloud,
   AlertTriangle,
   Bell,
+  CalendarDays,
+  Factory,
+  ClipboardList,
+  Banknote,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -30,22 +34,44 @@ import { useData } from '../services/api';
 import type { Permission } from '@agripos/shared';
 import { toast } from 'sonner';
 import type { Notification } from '../pages/Notifications';
-const links: { path: string; label: string; icon: typeof Sprout; permission?: Permission }[] = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/pos', label: 'Point of sale', icon: ShoppingBasket, permission: 'sales.write' },
-  { path: '/products', label: 'Products', icon: Package },
-  { path: '/inventory', label: 'Inventory', icon: Boxes },
-  { path: '/purchases', label: 'Purchases', icon: Truck, permission: 'purchases.write' },
-  { path: '/suppliers', label: 'Suppliers', icon: Contact, permission: 'purchases.write' },
-  { path: '/customers', label: 'Customers', icon: Users, permission: 'customers.write' },
-  { path: '/credit', label: 'Credit management', icon: Wallet, permission: 'payments.write' },
-  { path: '/expenses', label: 'Expenses', icon: Receipt, permission: 'expenses.write' },
-  { path: '/reports', label: 'Reports', icon: ChartNoAxesCombined, permission: 'reports.read' },
-  { path: '/staff', label: 'Staff & roles', icon: ShieldCheck, permission: 'staff.manage' },
-  { path: '/settings', label: 'Settings', icon: Settings },
-  { path: '/cash-sessions', label: 'Cash registers', icon: Wallet, permission: 'sales.write' },
-  { path: '/sync', label: 'Offline & sync', icon: Cloud, permission: 'sales.write' },
+type NavLinkItem = { path: string; label: string; icon: typeof Sprout; permission?: Permission };
+const sections: { label: string | null; links: NavLinkItem[] }[] = [
+  {
+    label: null,
+    links: [
+      { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+      { path: '/pos', label: 'Point of sale', icon: ShoppingBasket, permission: 'sales.write' },
+      { path: '/daily', label: 'Daily business', icon: CalendarDays, permission: 'reports.read' },
+      { path: '/products', label: 'Products', icon: Package },
+      { path: '/inventory', label: 'Inventory', icon: Boxes },
+      { path: '/factories', label: 'Factories', icon: Factory, permission: 'customers.write' },
+      { path: '/drivers', label: 'Lorry drivers', icon: Truck, permission: 'customers.write' },
+      { path: '/credit', label: 'Credit management', icon: Wallet, permission: 'payments.write' },
+      { path: '/reports', label: 'Reports', icon: ChartNoAxesCombined, permission: 'reports.read' },
+      { path: '/settings', label: 'Settings', icon: Settings },
+    ],
+  },
+  {
+    label: 'MORE',
+    links: [
+      { path: '/sales', label: 'Sales history', icon: Receipt, permission: 'sales.write' },
+      {
+        path: '/purchases',
+        label: 'Purchases',
+        icon: ClipboardList,
+        permission: 'purchases.write',
+      },
+      { path: '/suppliers', label: 'Suppliers', icon: Contact, permission: 'purchases.write' },
+      { path: '/customers', label: 'Customers', icon: Users, permission: 'customers.write' },
+      { path: '/expenses', label: 'Expenses', icon: Banknote, permission: 'expenses.write' },
+      { path: '/cash-sessions', label: 'Cash registers', icon: Wallet, permission: 'sales.write' },
+      { path: '/staff', label: 'Staff & roles', icon: ShieldCheck, permission: 'staff.manage' },
+      { path: '/sync', label: 'Offline & sync', icon: Cloud, permission: 'sales.write' },
+    ],
+  },
 ];
+const links = sections.flatMap((s) => s.links);
+const offlinePaths = ['/pos', '/sales', '/products', '/settings', '/sync'];
 export function Shell() {
   const { user, theme, setTheme, setUser } = useSession(),
     [collapsed, setCollapsed] = useState(false),
@@ -98,22 +124,28 @@ export function Shell() {
           </div>
         )}
         <nav>
-          {links
-            .filter(
-              (l) => !user?.offline || ['/pos', '/products', '/settings', '/sync'].includes(l.path),
-            )
-            .filter((l) => !l.permission || user?.permissions.includes(l.permission))
-            .map(({ path, label, icon: Icon }) => (
-              <NavLink
-                key={path}
-                to={path}
-                end={path === '/'}
-                title={collapsed ? label : undefined}
-              >
-                <Icon size={19} />
-                {!collapsed && <span>{label}</span>}
-              </NavLink>
-            ))}
+          {sections.map((section) => {
+            const visible = section.links
+              .filter((l) => !user?.offline || offlinePaths.includes(l.path))
+              .filter((l) => !l.permission || user?.permissions.includes(l.permission));
+            if (!visible.length) return null;
+            return (
+              <div className="nav-group" key={section.label ?? 'main'}>
+                {section.label && !collapsed && <div className="nav-section">{section.label}</div>}
+                {visible.map(({ path, label, icon: Icon }) => (
+                  <NavLink
+                    key={path}
+                    to={path}
+                    end={path === '/'}
+                    title={collapsed ? label : undefined}
+                  >
+                    <Icon size={19} />
+                    {!collapsed && <span>{label}</span>}
+                  </NavLink>
+                ))}
+              </div>
+            );
+          })}
         </nav>
         <div className="sidebar-footer">
           <button onClick={() => setCollapsed(!collapsed)}>
@@ -126,7 +158,7 @@ export function Shell() {
               </>
             )}
           </button>
-          {!collapsed && <small>AgriPOS · v0.5.0</small>}
+          {!collapsed && <small>AgriPOS · v0.6.0</small>}
         </div>
       </aside>
       <div className="workspace">

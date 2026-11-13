@@ -93,30 +93,11 @@ export function Purchases() {
               ),
             },
             {
-              key: 'action',
-              title: '',
-              value: (r) =>
-                canReceive && ['approved', 'ordered', 'sent', 'partial'].includes(r.status) ? (
-                  <button
-                    className="btn secondary small"
-                    onClick={async () => {
-                      try {
-                        setReceive(await api(`/purchases/${r.id}`));
-                        setOperationId(crypto.randomUUID());
-                      } catch (e) {
-                        toast.error(e instanceof Error ? e.message : 'Unable to load order');
-                      }
-                    }}
-                  >
-                    Receive goods
-                  </button>
-                ) : null,
-            },
-            {
-              key: 'workflow',
-              title: 'Workflow',
+              key: 'actions',
+              title: 'Actions',
+              align: 'end',
               value: (r) => (
-                <div className="inline">
+                <div className="row-actions">
                   {r.status === 'draft' && (
                     <button className="text-btn" onClick={() => void changeStatus(r, 'submitted')}>
                       Submit
@@ -135,6 +116,21 @@ export function Purchases() {
                   {['draft', 'submitted', 'approved', 'ordered', 'sent'].includes(r.status) && (
                     <button className="text-btn" onClick={() => void changeStatus(r, 'cancelled')}>
                       Cancel unreceived order
+                    </button>
+                  )}
+                  {canReceive && ['approved', 'ordered', 'sent', 'partial'].includes(r.status) && (
+                    <button
+                      className="btn secondary small"
+                      onClick={async () => {
+                        try {
+                          setReceive(await api(`/purchases/${r.id}`));
+                          setOperationId(crypto.randomUUID());
+                        } catch (e) {
+                          toast.error(e instanceof Error ? e.message : 'Unable to load order');
+                        }
+                      }}
+                    >
+                      Receive goods
                     </button>
                   )}
                 </div>

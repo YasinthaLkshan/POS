@@ -190,6 +190,8 @@ export async function pushOffline(
     assert(
       operation.sale.terminalId === grant.terminalId &&
         !operation.sale.customerId &&
+        !operation.sale.creditCustomer &&
+        !operation.sale.schedule &&
         !operation.sale.parkedId &&
         operation.sale.payments.length === 1 &&
         operation.sale.payments[0]?.method === 'cash' &&

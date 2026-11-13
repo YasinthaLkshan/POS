@@ -84,6 +84,18 @@ export async function saleDetails(db: Database, actor: Actor, saleId: string) {
       'SELECT method,amount,reference FROM payments WHERE shop_id=$1 AND sale_id=$2',
       [actor.shopId, saleId],
     ),
+    customer: sale.customer_id
+      ? (
+          await db.query(
+            'SELECT c.id,c.name,c.kind,c.phone,c.driver_code,c.lorry_number,f.name factory FROM customers c LEFT JOIN factories f ON f.id=c.factory_id WHERE c.shop_id=$1 AND c.id=$2',
+            [actor.shopId, sale.customer_id],
+          )
+        )[0]
+      : null,
+    installments: await db.query(
+      'SELECT id,seq,due_date::text due_date,amount,paid,reduced,remaining FROM installment_balances WHERE shop_id=$1 AND sale_id=$2 ORDER BY seq',
+      [actor.shopId, saleId],
+    ),
     shop: (
       await db.query('SELECT name,address,phone,receipt_footer FROM shops WHERE id=$1', [
         actor.shopId,

@@ -74,7 +74,8 @@ export function Expenses() {
             },
             {
               key: 'edit',
-              title: '',
+              title: 'Actions',
+              align: 'end',
               value: (r) =>
                 !r.voided_at && (
                   <button
@@ -282,7 +283,7 @@ export function Reports() {
               ]}
             />
           </QueryState>
-          <p className="muted">
+          <p className="muted table-note">
             Returns reduce revenue on their return dates. Unsellable returns retain their original
             cost. Net profit is an estimate after recorded expenses; it is not a statutory
             accounting statement.
@@ -374,7 +375,8 @@ export function Staff() {
             },
             {
               key: 'action',
-              title: '',
+              title: 'Actions',
+              align: 'end',
               value: (r) =>
                 r.id !== user?.id && (
                   <button className="btn secondary small" onClick={() => setEdit(r)}>

@@ -1,11 +1,13 @@
 ﻿import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { quantity, decimalToInteger } from '@agripos/shared';
-import { api, useData, usePagedData, today, type Batch } from '../services/api';
+import { api, useData, usePagedData, today, displayDate, type Batch } from '../services/api';
 import { useAllowed } from '../stores/session';
 import { Table } from '../components/Table';
 import { FormDialog } from '../components/FormDialog';
 import { PageHeading, QueryState, Badge, RecordPages } from '../components/common';
+import { ReceiveStockDialog } from '../components/StockDialogs';
+import { PackagePlus } from 'lucide-react';
 export function Inventory() {
   const [supplierReturn, setSupplierReturn] = useState<Batch | null>(null),
     canReturn = useAllowed('purchases.write');
@@ -18,6 +20,7 @@ export function Inventory() {
     [count, setCount] = useState<Batch | null>(null),
     [operationId, setOperationId] = useState(''),
     [filter, setFilter] = useState('all'),
+    [receiving, setReceiving] = useState(false),
     cache = useQueryClient(),
     allowed = useAllowed('inventory.write');
   const rows = (query.data ?? []).filter(
@@ -36,7 +39,16 @@ export function Inventory() {
       <PageHeading
         title="Inventory"
         description="Track every batch, every movement, every growing opportunity."
+        action={
+          allowed && (
+            <button className="btn" onClick={() => setReceiving(true)}>
+              <PackagePlus size={16} />
+              Receive stock
+            </button>
+          )
+        }
       />
+      {receiving && <ReceiveStockDialog onClose={() => setReceiving(false)} />}
       <div className="section-toolbar">
         <div className="segmented">
           {['all', 'available', 'expired', 'expiring'].map((v) => (
@@ -69,7 +81,7 @@ export function Inventory() {
             {
               key: 'expiry',
               title: 'Expiry date',
-              value: (r) => r.expiry_date ?? 'Not applicable',
+              value: (r) => (r.expiry_date ? displayDate(r.expiry_date) : 'Not applicable'),
               sort: (r) => r.expiry_date ?? '9999',
             },
             {
@@ -95,10 +107,11 @@ export function Inventory() {
             },
             {
               key: 'actions',
-              title: '',
+              title: allowed ? 'Actions' : '',
+              align: 'end',
               value: (r) =>
                 allowed && (
-                  <div className="inline">
+                  <div className="row-actions">
                     {canReturn && (
                       <button
                         className="btn secondary small"

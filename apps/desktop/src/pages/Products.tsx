@@ -1,7 +1,14 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Plus, Tags, Pencil } from 'lucide-react';
+import { Plus, Tags, Pencil, Layers, PackagePlus, Repeat, History, Package } from 'lucide-react';
+import { Modal } from '../components/Modal';
+import {
+  ConvertStockDialog,
+  FamilyDialog,
+  ReceiveStockDialog,
+  StockHistoryDialog,
+} from '../components/StockDialogs';
 import { money, quantity, decimalToInteger } from '@agripos/shared';
 import {
   api,
@@ -19,11 +26,17 @@ import { toast } from 'sonner';
 import { ProductImage } from '../components/ProductImage';
 export function Products() {
   const shop = useData<{ default_tax_bps: number }>('/settings');
-  const [params] = useSearchParams(),
+  const [params, setParams] = useSearchParams(),
     [page, setPage] = useState(1),
     [edit, setEdit] = useState<Product | 'new' | null>(null),
     [category, setCategory] = useState(false),
     [kind, setKind] = useState('other');
+  const [family, setFamily] = useState<'new' | { id: string; name: string } | null>(null),
+    [choose, setChoose] = useState(params.get('new') === '1'),
+    [history, setHistory] = useState<Product | null>(null),
+    [receiving, setReceiving] = useState<Product | null>(null),
+    [converting, setConverting] = useState<Product | null>(null);
+  const canInventory = useAllowed('inventory.write');
   const [importCsv, setImportCsv] = useState<{ text: string; operationId: string } | null>(null);
   const query = useData<{ items: Product[]; total: number }>(
       `/products?limit=100&page=${page}&search=${encodeURIComponent(params.get('q') ?? '')}`,
@@ -81,6 +94,19 @@ export function Products() {
       hint: 'Use your confirmed product tax classification.',
     },
     { name: 'minimumStock', label: 'Low-stock threshold', type: 'number', min: 0 },
+    {
+      name: 'wholeUnits',
+      label: 'Quantities',
+      type: 'select',
+      required: true,
+      options: [
+        { value: 'true', label: 'Whole units only (pieces, bags, packets)' },
+        { value: 'false', label: 'Allow decimals (loose kg, litres)' },
+      ],
+    },
+    ...(edit && edit !== 'new' && edit.family_id
+      ? [{ name: 'variantLabel', label: 'Size / variant label', required: true }]
+      : []),
     { name: 'brand', label: 'Brand' },
     { name: 'subcategory', label: 'Subcategory' },
     { name: 'purchaseUnit', label: 'Purchase unit (e.g. carton)' },
@@ -132,6 +158,8 @@ export function Products() {
           purchaseUnit: edit.purchase_unit,
           purchaseFactor: String(edit.purchase_factor / 1000),
           reorderQuantity: String(edit.reorder_quantity / 1000),
+          wholeUnits: String(edit.whole_units),
+          variantLabel: edit.variant_label,
           ...Object.fromEntries(
             Object.entries(edit.attributes).map(([k, v]) => [`attribute_${k}`, v]),
           ),
@@ -145,6 +173,7 @@ export function Products() {
           active: 'true',
           purchaseFactor: '1',
           reorderQuantity: '0',
+          wholeUnits: 'true',
         };
   return (
     <>
@@ -181,6 +210,12 @@ export function Products() {
               <button className="btn secondary" onClick={() => setCategory(true)}>
                 <Tags size={16} />
                 Add category
+              </button>
+            )}
+            {canWrite && canPrice && (
+              <button className="btn secondary" onClick={() => setFamily('new')}>
+                <Layers size={16} />
+                Add product with sizes
               </button>
             )}
             {canWrite && canPrice && (
@@ -255,10 +290,14 @@ export function Products() {
               title: 'Product',
               value: (r) => (
                 <div className="product-cell">
-                  <span className="product-symbol">{r.name.slice(0, 1)}</span>
+                  <span className="product-symbol">{(r.family ?? r.name).slice(0, 1)}</span>
                   <div>
-                    <strong>{r.name}</strong>
-                    <small>{r.sku}</small>
+                    <strong>{r.family ?? r.name}</strong>
+                    <small>
+                      {r.family ? `${r.variant_label} · ` : ''}
+                      {r.sku} · {r.unit}
+                      {r.whole_units ? '' : ' (decimals)'}
+                    </small>
                   </div>
                 </div>
               ),
@@ -304,21 +343,70 @@ export function Products() {
               ),
             },
             {
+              key: 'driver',
+              title: 'Driver discount',
+              align: 'end',
+              value: (r) => (r.driver_discount ? `${money(r.driver_discount)} / ${r.unit}` : '—'),
+            },
+            {
               key: 'actions',
-              title: '',
-              value: (r) =>
-                canWrite && canPrice ? (
+              title: 'Actions',
+              align: 'end',
+              value: (r) => (
+                <div className="row-actions">
+                  {canInventory && (
+                    <button
+                      className="icon-btn"
+                      title="Receive stock"
+                      aria-label={`Receive stock for ${r.name}`}
+                      onClick={() => setReceiving(r)}
+                    >
+                      <PackagePlus size={15} />
+                    </button>
+                  )}
+                  {canInventory && r.family_id && (
+                    <button
+                      className="icon-btn"
+                      title="Open bag / convert stock"
+                      aria-label={`Convert stock for ${r.name}`}
+                      disabled={r.stock <= 0}
+                      onClick={() => setConverting(r)}
+                    >
+                      <Repeat size={15} />
+                    </button>
+                  )}
+                  {canWrite && canPrice && r.family_id && (
+                    <button
+                      className="icon-btn"
+                      title="Add another size"
+                      aria-label={`Add a size to ${r.family}`}
+                      onClick={() => setFamily({ id: r.family_id!, name: r.family! })}
+                    >
+                      <Layers size={15} />
+                    </button>
+                  )}
                   <button
                     className="icon-btn"
-                    aria-label={`Edit ${r.name}`}
-                    onClick={() => {
-                      setKind(r.kind);
-                      setEdit(r);
-                    }}
+                    title="Stock history"
+                    aria-label={`Stock history for ${r.name}`}
+                    onClick={() => setHistory(r)}
                   >
-                    <Pencil size={15} />
+                    <History size={15} />
                   </button>
-                ) : null,
+                  {canWrite && canPrice && (
+                    <button
+                      className="icon-btn"
+                      aria-label={`Edit ${r.name}`}
+                      onClick={() => {
+                        setKind(r.kind);
+                        setEdit(r);
+                      }}
+                    >
+                      <Pencil size={15} />
+                    </button>
+                  )}
+                </div>
+              ),
             },
           ]}
         />
@@ -369,6 +457,8 @@ export function Products() {
                 brand: v.brand,
                 description: v.description,
                 active: v.active === 'true',
+                wholeUnits: v.wholeUnits !== 'false',
+                ...(edit !== 'new' && edit.family_id ? { variantLabel: v.variantLabel } : {}),
                 attributes: Object.fromEntries(
                   Object.entries(v)
                     .filter(([k]) => k.startsWith('attribute_'))
@@ -379,6 +469,51 @@ export function Products() {
             saved();
           }}
         />
+      )}
+      {choose && (
+        <Modal
+          title="What are you adding?"
+          description="Products sold in several sizes keep separate stock and prices for each size."
+          onClose={() => {
+            setChoose(false);
+            setParams({});
+          }}
+        >
+          <div className="quick-actions">
+            <button
+              onClick={() => {
+                setChoose(false);
+                setParams({});
+                setFamily('new');
+              }}
+            >
+              <Layers size={18} />
+              Product with sizes (fertilizer: loose, 25 kg, 50 kg)
+            </button>
+            <button
+              onClick={() => {
+                setChoose(false);
+                setParams({});
+                setEdit('new');
+              }}
+            >
+              <Package size={18} />
+              Single product (tool, plant, seed packet)
+            </button>
+          </div>
+        </Modal>
+      )}
+      {family && categories.data && (
+        <FamilyDialog
+          categories={categories.data}
+          family={family === 'new' ? undefined : family}
+          onClose={() => setFamily(null)}
+        />
+      )}
+      {history && <StockHistoryDialog product={history} onClose={() => setHistory(null)} />}
+      {receiving && <ReceiveStockDialog product={receiving} onClose={() => setReceiving(null)} />}
+      {converting && (
+        <ConvertStockDialog product={converting} onClose={() => setConverting(null)} />
       )}
       {category && (
         <FormDialog

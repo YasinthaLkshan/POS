@@ -106,9 +106,31 @@ export function Login() {
       {setup && (
         <FormDialog
           title="Connect your shop"
-          description="Paste your Neon PostgreSQL connection URL. For a new database, set an initial admin password. AgriPOS creates the tables and starts its service automatically."
+          description="The main shop computer keeps the shop database, so every till keeps working when the internet is down. Other tills connect to it over the shop network. For a new database, set an initial admin password; AgriPOS creates the tables automatically."
           fields={[
-            { name: 'databaseUrl', label: 'Neon database URL', type: 'password', required: true },
+            {
+              name: 'role',
+              label: 'This computer is',
+              type: 'select',
+              required: true,
+              options: [
+                { value: 'main', label: 'The main shop computer' },
+                { value: 'till', label: 'A till (uses the main computer)' },
+              ],
+            },
+            {
+              name: 'databaseUrl',
+              label: 'Shop database URL',
+              type: 'password',
+              required: true,
+              hint: 'Main computer: postgresql://agripos:PASSWORD@localhost:5432/agripos · Till: replace localhost with the main computer’s name or IP address.',
+            },
+            {
+              name: 'backupUrl',
+              label: 'Cloud backup URL (Neon, main computer only)',
+              type: 'password',
+              hint: 'Use an empty Neon database. It is replaced with a copy of the shop database every 30 minutes when online.',
+            },
             {
               name: 'adminPassword',
               label: 'Initial admin password (new database)',
@@ -117,10 +139,15 @@ export function Login() {
             { name: 'shopName', label: 'Shop name (new database)' },
             { name: 'existingStaffId', label: 'Existing administrator staff ID (existing shop)' },
           ]}
+          initial={{ role: 'main' }}
           onClose={() => setSetup(false)}
           onSave={async (values) => {
+            if (values.backupUrl && values.role !== 'main')
+              throw new Error('Only the main shop computer copies backups to the cloud');
             await window.desktop.configure({
               databaseUrl: values.databaseUrl!,
+              role: values.role as 'main' | 'till',
+              ...(values.backupUrl ? { backupUrl: values.backupUrl } : {}),
               ...(values.adminPassword ? { adminPassword: values.adminPassword } : {}),
               ...(values.shopName ? { shopName: values.shopName } : {}),
               ...(values.existingStaffId ? { existingStaffId: values.existingStaffId } : {}),

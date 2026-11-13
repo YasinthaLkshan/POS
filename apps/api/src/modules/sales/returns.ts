@@ -1,7 +1,7 @@
-import { refundSchema, safeInteger, type Actor } from '@agripos/shared';
+import { reduceLatestFirst, refundSchema, safeInteger, type Actor } from '@agripos/shared';
 import type { Database } from '../../database/db';
 import { command, requirePermission, audit } from '../../services/transactions';
-import { assert } from '../../utils/errors';
+import { AppError, assert } from '../../utils/errors';
 import { cashMovement } from '../finance/cash';
 // Cumulative integer apportionment ensures the final return absorbs every rounding cent.
 const share = (amount: number, quantity: number, totalQuantity: number) =>
@@ -163,11 +163,30 @@ export async function returnSale(db: Database, actor: Actor, saleId: string, inp
         }
       }
     }
-    if (creditAmount)
+    if (creditAmount) {
       await tx.query(
         "INSERT INTO customer_ledger(shop_id,customer_id,sale_id,amount,type,reference,actor_id) VALUES($1,$2,$3,$4,'return',$5,$6)",
         [actor.shopId, sale.customer_id, saleId, -creditAmount, p.operationId, actor.id],
       );
+      const open = await tx.query<{ id: string; seq: number; due_date: string; remaining: number }>(
+        'SELECT id,seq,due_date::text due_date,remaining FROM installment_balances WHERE shop_id=$1 AND sale_id=$2 AND remaining>0',
+        [actor.shopId, saleId],
+      );
+      let reductions;
+      try {
+        reductions = reduceLatestFirst(
+          open.map((i) => ({ id: i.id, seq: i.seq, dueDate: i.due_date, remaining: i.remaining })),
+          creditAmount,
+        );
+      } catch {
+        throw new AppError(409, 'LEDGER_REVIEW', 'Installment balances require reconciliation');
+      }
+      for (const r of reductions)
+        await tx.query(
+          'INSERT INTO installment_reductions(shop_id,return_id,installment_id,amount) VALUES($1,$2,$3,$4)',
+          [actor.shopId, p.operationId, r.installmentId, r.amount],
+        );
+    }
     if (refundAmount && p.refundMethod === 'cash')
       await cashMovement(tx, actor, p.terminalId, -refundAmount, 'refund', p.operationId, p.reason);
     if (

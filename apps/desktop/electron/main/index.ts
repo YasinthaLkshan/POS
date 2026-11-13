@@ -3,7 +3,7 @@ import { stat, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
-import { requestSchema, id, reportKinds, date } from '@agripos/shared';
+import { requestSchema, id, reportKinds, date, printableDocument } from '@agripos/shared';
 import {
   connection,
   configure,
@@ -20,9 +20,11 @@ import {
   saveLocalImage,
   ensureEmbeddedStarted,
   stopEmbedded,
+  backupStatus,
+  backupNow,
 } from '../services/client';
-import { printReceipt } from '../printing/receipt';
-import { printReport } from '../printing/report';
+import { printPaymentReceipt, printReceipt } from '../printing/receipt';
+import { printDocument, printReport } from '../printing/report';
 import { windowState, saveWindow, logEvent } from '../services/runtime';
 let window: BrowserWindow | null = null;
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -47,7 +49,7 @@ app.whenReady().then(() => {
     ...(saved ? { x: saved.x, y: saved.y, width: saved.width, height: saved.height } : {}),
     minWidth: 1000,
     minHeight: 700,
-    backgroundColor: '#F6F8F7',
+    backgroundColor: '#F2F6F3',
     show: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.cjs'),
@@ -160,6 +162,19 @@ app.whenReady().then(() => {
     );
   }, 30000);
   syncTimer.unref();
+  handle('backup:status', () => backupStatus());
+  handle('backup:run', () => backupNow());
+  const scheduledBackup = () => {
+    try {
+      if (backupStatus().role === 'main') void backupNow();
+    } catch (error) {
+      logEvent('backup.schedule.failure', {
+        error: error instanceof Error ? error.name : 'Unknown',
+      });
+    }
+  };
+  setTimeout(scheduledBackup, 2 * 60000).unref();
+  setInterval(scheduledBackup, 30 * 60000).unref();
   handle('auth:login', async (input) => {
     if (!connection())
       return {
@@ -229,6 +244,30 @@ app.whenReady().then(() => {
           pdf: z.boolean(),
           marginMm: z.number().min(0).max(10).default(4),
         })
+        .strict()
+        .parse(input),
+    ),
+  );
+  handle('printer:payment', (input) =>
+    printPaymentReceipt(
+      window!,
+      z
+        .object({
+          paymentId: id,
+          printer: z.string().max(200),
+          paper: z.enum(['58mm', '80mm', 'A4']),
+          pdf: z.boolean(),
+          marginMm: z.number().min(0).max(10).default(4),
+        })
+        .strict()
+        .parse(input),
+    ),
+  );
+  handle('printer:document', (input) =>
+    printDocument(
+      window!,
+      z
+        .object({ path: z.string().regex(printableDocument), pdf: z.boolean().default(true) })
         .strict()
         .parse(input),
     ),

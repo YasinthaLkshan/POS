@@ -1,5 +1,7 @@
 # Offline operation and synchronization
 
+With the recommended setup in [SETUP.md](SETUP.md), the shop database runs on the main shop computer, so an internet outage does not interrupt any feature. Offline checkout below is the fallback for a till that cannot reach the main computer at all, for example when it is switched off or the shop network is down.
+
 ## Authorization
 
 1. An administrator authorizes the terminal in **Offline & sync**.

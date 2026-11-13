@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import type { ApiRequest } from '@agripos/shared';
 export async function api<T>(
@@ -59,9 +59,132 @@ export function useAction<T = unknown>(path: string, method: ApiRequest['method'
     onError: (error: Error) => toast.error(error.message),
   });
 }
+export function useDebounced<T>(value: T, delay = 250) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
+export interface Factory {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  notes: string;
+  active: boolean;
+  drivers?: number;
+  outstanding?: number;
+  overdue?: number;
+}
+export interface Driver {
+  id: string;
+  name: string;
+  driver_code: string;
+  lorry_number: string;
+  phone: string;
+  address: string;
+  notes: string;
+  active: boolean;
+  registered_at: string;
+  factory_id: string;
+  factory: string;
+  outstanding: number;
+  overdue: number;
+  next_due: string | null;
+}
+export interface InstallmentRow {
+  id: string;
+  sale_id: string;
+  seq: number;
+  installment_count: number;
+  due_date: string;
+  amount: number;
+  paid: number;
+  reduced: number;
+  remaining: number;
+  invoice_number: string;
+  sale_date: string;
+  original_credit: number;
+  customer_id: string;
+  customer_name: string;
+  customer_kind: 'registered' | 'driver' | 'walk_in';
+  phone: string;
+  driver_code: string | null;
+  lorry_number: string;
+  factory_id: string | null;
+  factory: string | null;
+  days: number;
+  status: 'overdue' | 'due_today' | 'due_soon' | 'upcoming' | 'paid';
+}
+export interface CreditProfileData {
+  customer: {
+    id: string;
+    name: string;
+    kind: 'registered' | 'driver' | 'walk_in';
+    phone: string;
+    address: string;
+    notes: string;
+    driver_code: string | null;
+    lorry_number: string;
+    factory_id: string | null;
+    factory: string | null;
+    factory_phone: string | null;
+    active: boolean;
+    registered_at: string;
+    outstanding: number;
+    overdue: number;
+    next_due: string | null;
+  };
+  totals: Record<string, number>;
+  installments: InstallmentRow[];
+  monthly: { month: string; amount: number; installments: number }[];
+  invoices: {
+    id: string;
+    invoice_number: string;
+    created_at: string;
+    subtotal: number;
+    discount: number;
+    total: number;
+    credit: number;
+    paid_at_sale: number;
+    outstanding: number;
+    payment_type: 'cash' | 'credit' | 'mixed';
+    status: string;
+  }[];
+  payments: {
+    id: string;
+    created_at: string;
+    amount: number;
+    method: string;
+    notes: string;
+    invoices: string | null;
+  }[];
+}
+export type BusinessSummary = Record<string, number>;
+export interface ShopSettings {
+  name: string;
+  driver_installments: number;
+  driver_credit_months: number;
+  normal_credit_months: number;
+  due_soon_days: number;
+  next_invoice_number: number;
+  invoice_prefix: string;
+}
+export const printOptions = () => ({
+  printer: localStorage.getItem('agripos-printer') ?? '',
+  paper: (localStorage.getItem('agripos-paper') ?? '80mm') as '58mm' | '80mm' | 'A4',
+  marginMm: Number(localStorage.getItem('agripos-margin') ?? 4),
+});
 export interface Product {
   id: string;
   name: string;
+  family_id: string | null;
+  family: string | null;
+  variant_label: string;
+  whole_units: boolean;
+  driver_discount: number;
   sku: string;
   barcode: string | null;
   category_id: string;
@@ -111,6 +234,8 @@ export interface Batch {
 }
 export interface Sale {
   id: string;
+  invoice_number?: string;
+  customer_name?: string;
   total: number;
   status: string;
   credit: number;

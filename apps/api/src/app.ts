@@ -14,6 +14,7 @@ import {
   date,
   type Actor,
   reportKinds,
+  customerKinds,
 } from '@agripos/shared';
 import type { Database } from './database/db';
 import type { Authenticate } from './middleware/auth';
@@ -39,6 +40,31 @@ import { orderStatus } from './modules/inventory/orders';
 import { correctExpense } from './modules/finance/expense-corrections';
 import { account } from './modules/finance/accounts';
 import { login, logout, changePassword } from './services/accounts';
+import { convertStock, receiveStock, stockHistory } from './modules/inventory/stock';
+import { businessSummary } from './modules/reporting/daily';
+import {
+  customerInstallments,
+  dueList,
+  previewRepayment,
+  repaymentReceipt,
+} from './modules/credit/service';
+import {
+  addVariant,
+  createFamily,
+  listDriverDiscounts,
+  listFamilies,
+  setDriverDiscount,
+  updateFamily,
+} from './modules/catalog/families';
+import {
+  creditProfile,
+  factoryDetails,
+  factoryReport,
+  listDrivers,
+  listFactories,
+  saveDriver,
+  saveFactory,
+} from './modules/drivers/service';
 export function createApp(db: Database, authenticate: Authenticate) {
   const app = express(),
     log = pino({ enabled: process.env.NODE_ENV !== 'test' });
@@ -269,10 +295,18 @@ export function createApp(db: Database, authenticate: Authenticate) {
     route('get', `/${kind}`, async (req, res) => {
       const a = actor(res);
       requirePermission(a, kind === 'suppliers' ? 'purchases.write' : 'customers.write');
-      const p = pageSchema.parse(req.query);
+      const p = pageSchema
+        .extend({ kind: z.enum([...customerKinds, 'all']).default('registered') })
+        .parse(req.query);
       return db.query(
-        `SELECT t.*,COALESCE((SELECT SUM(amount) FROM ${kind === 'customers' ? 'customer_ledger' : 'supplier_ledger'} l WHERE l.${kind === 'customers' ? 'customer_id' : 'supplier_id'}=t.id),0)::bigint balance FROM ${kind} t WHERE shop_id=$1 AND (name ILIKE $2 OR phone ILIKE $2) ORDER BY name LIMIT $3 OFFSET $4`,
-        [a.shopId, `%${p.search}%`, p.limit, (p.page - 1) * p.limit],
+        `SELECT t.*,COALESCE((SELECT SUM(amount) FROM ${kind === 'customers' ? 'customer_ledger' : 'supplier_ledger'} l WHERE l.${kind === 'customers' ? 'customer_id' : 'supplier_id'}=t.id),0)::bigint balance FROM ${kind} t WHERE shop_id=$1 AND (name ILIKE $2 OR phone ILIKE $2)${kind === 'customers' ? " AND ($5='all' OR t.kind=$5)" : ''} ORDER BY name,id LIMIT $3 OFFSET $4`,
+        [
+          a.shopId,
+          `%${p.search}%`,
+          p.limit,
+          (p.page - 1) * p.limit,
+          ...(kind === 'customers' ? [p.kind] : []),
+        ],
       );
     });
     route('post', `/${kind}`, async (req, res) => saveContact(db, actor(res), kind, req.body), 201);
@@ -280,6 +314,79 @@ export function createApp(db: Database, authenticate: Authenticate) {
       saveContact(db, actor(res), kind, req.body, id.parse(req.params.id)),
     );
   }
+  route('get', '/product-families', async (_req, res) => listFamilies(db, actor(res)));
+  route(
+    'post',
+    '/product-families',
+    async (req, res) => createFamily(db, actor(res), req.body),
+    201,
+  );
+  route('patch', '/product-families/:id', async (req, res) =>
+    updateFamily(db, actor(res), id.parse(req.params.id), req.body),
+  );
+  route(
+    'post',
+    '/product-families/:id/variants',
+    async (req, res) => addVariant(db, actor(res), id.parse(req.params.id), req.body),
+    201,
+  );
+  route(
+    'post',
+    '/inventory/receipts',
+    async (req, res) => receiveStock(db, actor(res), req.body),
+    201,
+  );
+  route(
+    'post',
+    '/inventory/conversions',
+    async (req, res) => convertStock(db, actor(res), req.body),
+    201,
+  );
+  route('get', '/products/:id/stock-history', async (req, res) =>
+    stockHistory(db, actor(res), id.parse(req.params.id)),
+  );
+  route('post', '/customers/:id/payments/preview', async (req, res) =>
+    previewRepayment(db, actor(res), id.parse(req.params.id), req.body),
+  );
+  route('get', '/customers/:id/installments', async (req, res) =>
+    customerInstallments(db, actor(res), id.parse(req.params.id)),
+  );
+  route('get', '/credit/due', async (req, res) => dueList(db, actor(res), req.query));
+  route('get', '/repayments/:id/receipt', async (req, res) =>
+    repaymentReceipt(db, actor(res), id.parse(req.params.id)),
+  );
+  route('get', '/driver-discounts', async (_req, res) => listDriverDiscounts(db, actor(res)));
+  route('post', '/driver-discounts', async (req, res) =>
+    setDriverDiscount(db, actor(res), req.body),
+  );
+  route('get', '/factories', async (req, res) =>
+    listFactories(db, actor(res), pageSchema.parse(req.query).search),
+  );
+  route('post', '/factories', async (req, res) => saveFactory(db, actor(res), req.body), 201);
+  route('patch', '/factories/:id', async (req, res) =>
+    saveFactory(db, actor(res), req.body, id.parse(req.params.id)),
+  );
+  route('get', '/factories/:id', async (req, res) =>
+    factoryDetails(db, actor(res), id.parse(req.params.id)),
+  );
+  route('get', '/factories/:id/report', async (req, res) =>
+    factoryReport(db, actor(res), id.parse(req.params.id)),
+  );
+  route('get', '/drivers', async (req, res) => {
+    const p = pageSchema.extend({ factoryId: id.optional() }).parse(req.query);
+    return listDrivers(db, actor(res), p);
+  });
+  route('post', '/drivers', async (req, res) => saveDriver(db, actor(res), req.body), 201);
+  route('patch', '/drivers/:id', async (req, res) =>
+    saveDriver(db, actor(res), req.body, id.parse(req.params.id)),
+  );
+  for (const path of ['/drivers/:id', '/customers/:id/credit-profile'])
+    route('get', path, async (req, res) => creditProfile(db, actor(res), id.parse(req.params.id)));
+  route('get', '/drivers/:id/statement', async (req, res) => {
+    const a = actor(res);
+    requirePermission(a, 'payments.write');
+    return (await account(db, a, 'customers', id.parse(req.params.id))).statement;
+  });
   route('get', '/inventory', async (req, res) => {
     const p = pageSchema.parse(req.query);
     return inventory(db, actor(res), p.limit, p.page);
@@ -350,7 +457,7 @@ export function createApp(db: Database, authenticate: Authenticate) {
     requirePermission(a, 'sales.write');
     const p = pageSchema.parse(req.query);
     return db.query(
-      'SELECT id,total,status,credit,created_at FROM sales WHERE shop_id=$1 AND id::text ILIKE $2 ORDER BY created_at DESC LIMIT $3 OFFSET $4',
+      'SELECT id,invoice_number,customer_name,total,status,credit,created_at FROM sales WHERE shop_id=$1 AND (id::text ILIKE $2 OR invoice_number ILIKE $2 OR customer_name ILIKE $2) ORDER BY created_at DESC LIMIT $3 OFFSET $4',
       [a.shopId, `%${p.search}%`, p.limit, (p.page - 1) * p.limit],
     );
   });
@@ -474,6 +581,15 @@ export function createApp(db: Database, authenticate: Authenticate) {
   route('get', '/reports/sales', async (req, res) =>
     trend(db, actor(res), date.parse(req.query.from), date.parse(req.query.to)),
   );
+  route('get', '/reports/business', async (req, res) =>
+    businessSummary(
+      db,
+      actor(res),
+      date.parse(req.query.from),
+      date.parse(req.query.to),
+      req.query.details === 'true',
+    ),
+  );
   route('get', '/reports/detail/:kind', async (req, res) =>
     report(
       db,
@@ -542,7 +658,27 @@ export function createApp(db: Database, authenticate: Authenticate) {
         'UPDATE shops SET email=$2,registration_number=$3,tax_number=$4,default_tax_bps=$5,invoice_prefix=$6 WHERE id=$1',
         [a.shopId, p.email, p.registrationNumber, p.taxNumber, p.defaultTaxBps, p.invoicePrefix],
       );
-      return result;
+      if (p.nextInvoiceNumber !== undefined)
+        assert(
+          p.nextInvoiceNumber >= Number(result!.next_invoice_number),
+          409,
+          'INVOICE_NUMBER',
+          'The next invoice number cannot go backwards; earlier numbers are already used',
+        );
+      const updated = (
+        await tx.query(
+          'UPDATE shops SET driver_installments=COALESCE($2,driver_installments),driver_credit_months=COALESCE($3,driver_credit_months),normal_credit_months=COALESCE($4,normal_credit_months),due_soon_days=COALESCE($5,due_soon_days),next_invoice_number=COALESCE($6,next_invoice_number) WHERE id=$1 RETURNING *',
+          [
+            a.shopId,
+            p.driverInstallments ?? null,
+            p.driverCreditMonths ?? null,
+            p.normalCreditMonths ?? null,
+            p.dueSoonDays ?? null,
+            p.nextInvoiceNumber ?? null,
+          ],
+        )
+      )[0];
+      return updated;
     });
   });
   route('get', '/staff', async (_req, res) => {

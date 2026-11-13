@@ -15,6 +15,7 @@ import { money, quantity, type Report } from '@agripos/shared';
 import { useData } from '../services/api';
 import { useAllowed } from '../stores/session';
 import { QueryState } from './common';
+const stockColors = ['#146B4A', '#D38A21', '#C73535'];
 export function DashboardInsights({ from, to }: { from: string; to: string }) {
   const reports = useAllowed('reports.read'),
     admin = useAllowed('staff.manage');
@@ -45,7 +46,7 @@ export function DashboardInsights({ from, to }: { from: string; to: string }) {
                   outerRadius={85}
                   label
                 >
-                  {['#21845B', '#D38A21', '#C73535'].map((color) => (
+                  {stockColors.map((color) => (
                     <Cell key={color} fill={color} />
                   ))}
                 </Pie>
@@ -53,11 +54,14 @@ export function DashboardInsights({ from, to }: { from: string; to: string }) {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          {stock.data?.map((s) => (
-            <p key={s.name}>
-              {s.name}: <strong>{s.value}</strong>
-            </p>
-          ))}
+          <div className="chart-legend">
+            {stock.data?.map((s, i) => (
+              <span key={s.name}>
+                <i style={{ background: stockColors[i] }} />
+                {s.name}: <strong>{s.value}</strong>
+              </span>
+            ))}
+          </div>
         </QueryState>
       </section>
       <section className="panel settings-card">
@@ -94,7 +98,7 @@ export function DashboardInsights({ from, to }: { from: string; to: string }) {
                     <XAxis dataKey="name" />
                     <YAxis tickFormatter={(v) => String(Number(v) / 100)} />
                     <Tooltip formatter={(v) => money(Number(v))} />
-                    <Bar dataKey="revenue" fill="#21845B" />
+                    <Bar dataKey="revenue" fill="#146B4A" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

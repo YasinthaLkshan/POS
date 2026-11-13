@@ -2,7 +2,7 @@
 
 ## Account and database setup
 
-Follow [SETUP.md](SETUP.md) in order. It covers Neon PostgreSQL, first administrator and local desktop images.
+Follow [SETUP.md](SETUP.md) in order. It covers the main shop computer's PostgreSQL, connecting tills over the shop network, the Neon cloud backup, the first administrator and local desktop images.
 
 The backend requires `DATABASE_URL` (a Neon direct connection URL) and `OFFLINE_SIGNING_KEY`. Initial provisioning also needs `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`, `ADMIN_NAME` and `SHOP_NAME`. Use a controlled runtime SQL role with the required RLS access. All private values stay on the backend.
 
@@ -14,7 +14,7 @@ The root Dockerfile builds the API separately from the desktop. `.dockerignore` 
 
 ## Desktop connection
 
-Use **Connect your shop** to enter the Neon direct PostgreSQL URL. The installed app stores it using Windows secure storage, applies migrations, and starts its local API automatically. The installed app does not read the source repository `.env`.
+Use **Connect your shop** to choose whether the computer is the main shop computer or a till, and to enter the shop database URL (plus the Neon backup URL on the main computer). The installed app stores them using Windows secure storage, creates the database on the main computer if needed, applies migrations, and starts its local API automatically. The installed app does not read the source repository `.env`.
 
 ## Windows build
 
@@ -30,7 +30,7 @@ npm.cmd run package:win
 npx.cmd playwright test --config playwright.packaged.config.ts
 ```
 
-Output: `apps/desktop/release/AgriPOS Setup 0.5.0.exe`; unpacked executable: `apps/desktop/release/win-unpacked/AgriPOS.exe`.
+Output: `apps/desktop/release/AgriPOS Setup 0.6.0.exe`; unpacked executable: `apps/desktop/release/win-unpacked/AgriPOS.exe`.
 
 If Electron's distribution download times out after the desktop build succeeds, package using the locked runtime already installed by `npm ci`: `npm.cmd run package:win -w @agripos/desktop -- --config.electronDist=../../node_modules/electron/dist`. This does not rebuild the renderer; run `build:desktop` first after any source change.
 
@@ -46,7 +46,8 @@ Install the Windows printer driver. Select a printer and paper format (58 mm, 80
 
 ## Backups
 
-- Cloud: configure Neon backups appropriate to your plan and retain a separate secure PostgreSQL export according to shop policy. Test restoration into a separate database, including staff account hashes and sessions.
+- Shop database: the main computer writes a `pg_dump` custom-format file every 30 minutes (and on **Back up now**) to `userData\backups`, keeping the newest 48, and then replaces the Neon copy in one `pg_restore` transaction. Copy some of these files to removable or off-site storage according to shop policy, and configure Neon's own history retention as a second layer.
+- Restoring the shop database: install PostgreSQL on the replacement computer, run `scripts\setup-shop-server.ps1`, then restore the newest backup file (or the Neon copy) into the empty `agripos` database, for example `pg_restore --no-owner --no-privileges --single-transaction -h localhost -U agripos -d agripos agripos-YYYYMMDD-HHMMSS.dump`. To start from Neon, first create a file with `pg_dump --format=custom "<Neon URL>" -f neon.dump`. Then choose **Connect your shop > The main shop computer** with the same URL; existing administrators are kept. Test this procedure on a spare computer before you rely on it.
 - Desktop: first synchronize and reconcile all receipts. Quit AgriPOS completely, then back up its entire Electron `userData` directory, including SQLite files, local product/shop images, terminal ID and encrypted session/configuration files. Do not copy only a live SQLite main file while its WAL is active.
 - SafeStorage ciphertext is tied to the Windows account. A local backup is not a portable plaintext archive. Preserve the original account/machine recovery capability until every paid offline receipt is reconciled.
 - Restore only while the application is stopped. Keep the original directory intact. Restoring an older snapshot can replay pending receipts; server operation IDs prevent duplicate posting, but the local authorization should be renewed online before further selling.

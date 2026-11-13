@@ -38,3 +38,27 @@ export function postgres(url: string): Database {
     close: () => pool.end(),
   };
 }
+/** Creates the database named in the URL when the server reports it missing. */
+export async function ensureDatabase(url: string) {
+  const probe = postgres(url);
+  try {
+    await probe.query('SELECT 1');
+    return false;
+  } catch (error) {
+    if ((error as { code?: string }).code !== '3D000') throw error;
+  } finally {
+    await probe.close();
+  }
+  const target = new URL(url),
+    name = decodeURIComponent(target.pathname.replace(/^\//, ''));
+  if (!/^[A-Za-z_][A-Za-z0-9_]{0,62}$/.test(name))
+    throw new Error('Use a database name containing only letters, numbers and underscores');
+  target.pathname = '/postgres';
+  const server = postgres(target.toString());
+  try {
+    await server.query(`CREATE DATABASE "${name}"`);
+  } finally {
+    await server.close();
+  }
+  return true;
+}

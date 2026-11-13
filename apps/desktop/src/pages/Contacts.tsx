@@ -82,8 +82,8 @@ export function Contacts({
         }
       />
       {selected && (
-        <section className="panel settings-card">
-          <div className="inline">
+        <section className="panel settings-card account-panel">
+          <div className="inline spread">
             <h2>{selected.name} · Account</h2>
             <button className="text-btn" onClick={() => setSelected(null)}>
               Close account
@@ -145,15 +145,6 @@ export function Contacts({
           searchText={(r) => `${r.name} ${r.phone} ${r.email}`}
           columns={[
             {
-              key: 'account',
-              title: 'Account',
-              value: (r) => (
-                <button className="text-btn" onClick={() => setSelected(r)}>
-                  Statement / history
-                </button>
-              ),
-            },
-            {
               key: 'name',
               title: 'Name',
               value: (r) => <strong>{r.name}</strong>,
@@ -174,43 +165,37 @@ export function Contacts({
               sort: (r) => r.balance ?? 0,
             },
             {
-              key: 'supplier-edit',
-              title: '',
-              value: (r) =>
-                kind === 'suppliers' && (
-                  <button
-                    className="icon-btn"
-                    aria-label={`Edit ${r.name}`}
-                    onClick={() => setEdit(r)}
-                  >
-                    <Pencil size={15} />
+              key: 'actions',
+              title: 'Actions',
+              align: 'end',
+              value: (r) => (
+                <div className="row-actions">
+                  <button className="text-btn" onClick={() => setSelected(r)}>
+                    Statement / history
                   </button>
-                ),
-            },
-            {
-              key: 'action',
-              title: '',
-              value: (r) =>
-                credit || kind === 'suppliers' ? (
-                  <button
-                    className="btn secondary small"
-                    disabled={!r.balance}
-                    onClick={() => {
-                      setOperationId(crypto.randomUUID());
-                      setPayment(r);
-                    }}
-                  >
-                    {kind === 'suppliers' ? 'Pay supplier' : 'Record payment'}
-                  </button>
-                ) : (
-                  <button
-                    className="icon-btn"
-                    aria-label={`Edit ${r.name}`}
-                    onClick={() => setEdit(r)}
-                  >
-                    <Pencil size={15} />
-                  </button>
-                ),
+                  {!credit && (
+                    <button
+                      className="icon-btn"
+                      aria-label={`Edit ${r.name}`}
+                      onClick={() => setEdit(r)}
+                    >
+                      <Pencil size={15} />
+                    </button>
+                  )}
+                  {(credit || kind === 'suppliers') && (
+                    <button
+                      className="btn secondary small"
+                      disabled={!r.balance}
+                      onClick={() => {
+                        setOperationId(crypto.randomUUID());
+                        setPayment(r);
+                      }}
+                    >
+                      {kind === 'suppliers' ? 'Pay supplier' : 'Record payment'}
+                    </button>
+                  )}
+                </div>
+              ),
             },
           ]}
         />

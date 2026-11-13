@@ -19,6 +19,10 @@ Business tables have RLS enabled and no direct `anon`/`authenticated` grants. Th
 
 The migration credential creates business tables, image storage, and triggers. Keep it separate from the runtime credential where the chosen Neon plan permits. A database owner connection is convenient for initial development but is not a least-privilege production setup.
 
+### Shop network database
+
+In the main-computer setup every till holds the `agripos` database credential, encrypted with Windows secure storage, because each till runs its own embedded API. `scripts/setup-shop-server.ps1` uses a dedicated non-superuser `agripos` role, accepts only `scram-sha-256` password logins from the detected shop subnet in `pg_hba.conf`, and opens the port in Windows Firewall only for that subnet on Private/Domain networks. Use a strong unique password, keep guest Wi-Fi on a separate network from the tills, and do not forward the PostgreSQL port on the router. Traffic on the shop network is not encrypted unless you configure PostgreSQL TLS. Backup processes receive passwords through environment variables, never command-line arguments. The Neon backup credential is stored only on the main computer.
+
 ## Desktop boundary
 
 - `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`.

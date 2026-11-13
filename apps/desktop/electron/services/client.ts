@@ -8,13 +8,19 @@ import { CheckoutJournal } from '../database/journal';
 import { OfflineStore } from '../database/offline';
 import type { OfflineGrant, SyncResult } from '@agripos/shared';
 import {
+  computerRoles,
   connectionSchema,
+  postgresUrl,
   type ApiRequest,
   type ApiResult,
+  type BackupStatus,
 } from '@agripos/shared';
 import { imageId, imageFile, writeImage, readImage, validateImage } from './local-images';
 import { validateApiUrl } from './api-url';
 import { startEmbeddedApi, type EmbeddedApi } from './embedded-api';
+import { checkBackupTarget, copyToCloud, createLocalBackup, findPgTools } from './backup';
+import { postgres } from '../../../api/src/database/db';
+import { logEvent } from './runtime';
 let client: ApiSession | null = null;
 let configuration: { apiUrl: string } | null = null;
 let embedded: EmbeddedApi | null = null;
@@ -116,8 +122,10 @@ export async function pendingSales() {
 const configPath = () => join(app.getPath('userData'), 'neon-connection.bin');
 const authPath = () => join(app.getPath('userData'), 'agripos-session.bin');
 const storedSchema = z.object({
-  databaseUrl: connectionSchema.shape.databaseUrl,
+  databaseUrl: postgresUrl,
   signingKey: z.string().min(32),
+  role: z.enum(computerRoles).default('till'),
+  backupUrl: postgresUrl.optional(),
 });
 function storedConfig() {
   if (!existsSync(configPath())) return null;
@@ -139,13 +147,24 @@ export async function configure(input: unknown) {
   const previous = storedConfig();
   const signingKey = previous?.signingKey ?? randomUUID() + randomUUID();
   const started = await startEmbeddedApi({
-    ...config,
+    databaseUrl: config.databaseUrl,
     signingKey,
+    createDatabase: config.role === 'main',
+    adminPassword: config.adminPassword,
+    shopName: config.shopName,
+    existingStaffId: config.existingStaffId,
   });
   try {
     writeFileSync(
       configPath(),
-      safeStorage.encryptString(JSON.stringify({ databaseUrl: config.databaseUrl, signingKey })),
+      safeStorage.encryptString(
+        JSON.stringify({
+          databaseUrl: config.databaseUrl,
+          signingKey,
+          role: config.role,
+          backupUrl: config.backupUrl,
+        }),
+      ),
     );
   } catch (error) {
     await started.stop();
@@ -173,7 +192,11 @@ export async function ensureEmbeddedStarted() {
   const saved = storedConfig();
   if (!saved) return;
   if (!starting) {
-    starting = startEmbeddedApi(saved)
+    starting = startEmbeddedApi({
+      databaseUrl: saved.databaseUrl,
+      signingKey: saved.signingKey,
+      createDatabase: saved.role === 'main',
+    })
       .then((started) => {
         embedded = started;
         configuration = { apiUrl: started.apiUrl };
@@ -287,6 +310,79 @@ async function onlineRequest<T = unknown>(request: ApiRequest): Promise<ApiResul
       },
     };
   }
+}
+const backupStatePath = () => join(app.getPath('userData'), 'backup-status.json');
+const backupStateSchema = z.object({
+  lastLocalAt: z.string().nullable().default(null),
+  lastCloudAt: z.string().nullable().default(null),
+  lastError: z.string().nullable().default(null),
+});
+let backingUp = false;
+function backupState() {
+  try {
+    return backupStateSchema.parse(JSON.parse(readFileSync(backupStatePath(), 'utf8')));
+  } catch {
+    return backupStateSchema.parse({});
+  }
+}
+export function backupStatus(): BackupStatus {
+  const saved = storedConfig();
+  return {
+    role: saved?.role ?? null,
+    cloudConfigured: !!saved?.backupUrl,
+    toolsFound: !!findPgTools(),
+    running: backingUp,
+    ...backupState(),
+  };
+}
+export async function backupNow(): Promise<ApiResult<BackupStatus>> {
+  const saved = storedConfig();
+  if (saved?.role !== 'main')
+    return {
+      error: { code: 'NOT_MAIN', message: 'Backups run on the main shop computer only' },
+    };
+  if (backingUp) return { data: backupStatus() };
+  const tools = findPgTools();
+  if (!tools)
+    return {
+      error: {
+        code: 'TOOLS_MISSING',
+        message:
+          'PostgreSQL backup tools were not found. Install PostgreSQL on this computer or set AGRIPOS_PG_BIN.',
+      },
+    };
+  backingUp = true;
+  const state = backupState();
+  try {
+    const file = await createLocalBackup({
+      databaseUrl: saved.databaseUrl,
+      directory: join(app.getPath('userData'), 'backups'),
+      tools,
+    });
+    state.lastLocalAt = new Date().toISOString();
+    if (saved.backupUrl) {
+      const local = postgres(saved.databaseUrl),
+        cloud = postgres(saved.backupUrl);
+      try {
+        await checkBackupTarget(local, cloud);
+      } finally {
+        await Promise.all([local.close(), cloud.close()]);
+      }
+      await copyToCloud({ cloudUrl: saved.backupUrl, file, tools });
+      state.lastCloudAt = new Date().toISOString();
+    }
+    state.lastError = null;
+    logEvent('backup.success', { cloud: !!saved.backupUrl });
+  } catch (error) {
+    state.lastError = error instanceof Error ? error.message : 'Backup failed';
+    logEvent('backup.failure', { error: error instanceof Error ? error.name : 'Unknown' });
+  } finally {
+    backingUp = false;
+    writeFileSync(backupStatePath(), JSON.stringify(state));
+  }
+  return state.lastError
+    ? { error: { code: 'BACKUP_FAILED', message: state.lastError } }
+    : { data: backupStatus() };
 }
 export function terminalId() {
   const path = join(app.getPath('userData'), 'terminal-id');

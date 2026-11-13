@@ -3,6 +3,7 @@ import type { Database } from '../../database/db';
 import { audit, command, requirePermission } from '../../services/transactions';
 import { assert } from '../../utils/errors';
 import { cashMovement } from './cash';
+import { openInstallments, planAllocation } from '../credit/service';
 export async function repay(db: Database, actor: Actor, customerId: string, input: unknown) {
   requirePermission(actor, 'payments.write');
   const p = repaymentSchema.parse(input);
@@ -26,8 +27,16 @@ export async function repay(db: Database, actor: Actor, customerId: string, inpu
       'OVERPAYMENT',
       'Repayment exceeds outstanding balance',
     );
+    const installments = await openInstallments(tx, actor, customerId);
+    assert(
+      installments.reduce((s, i) => s + i.remaining, 0) === balance,
+      409,
+      'LEDGER_REVIEW',
+      'Invoice balances require reconciliation before recording this payment',
+    );
+    const plan = planAllocation(installments, p.payment.amount, p.allocations);
     await tx.query(
-      "INSERT INTO customer_ledger(id,shop_id,customer_id,amount,type,reference,actor_id) VALUES($1,$2,$3,$4,'repayment',$5,$6)",
+      "INSERT INTO customer_ledger(id,shop_id,customer_id,amount,type,reference,actor_id,method,notes) VALUES($1,$2,$3,$4,'repayment',$5,$6,$7,$8)",
       [
         p.operationId,
         actor.shopId,
@@ -35,30 +44,22 @@ export async function repay(db: Database, actor: Actor, customerId: string, inpu
         -p.payment.amount,
         `${p.payment.method}: ${p.payment.reference}`,
         actor.id,
+        p.payment.method,
+        p.notes ?? '',
       ],
     );
-    let remaining = p.payment.amount;
-    const invoices = await tx.query<{ id: string; due: number }>(
-      `SELECT s.id,(s.credit-COALESCE((SELECT SUM(a.amount) FROM repayment_allocations a WHERE a.sale_id=s.id),0)-COALESCE((SELECT SUM(r.credit_amount) FROM returns r WHERE r.sale_id=s.id),0))::bigint due FROM sales s WHERE s.shop_id=$1 AND s.customer_id=$2 AND s.credit>0 ORDER BY s.due_date,s.created_at,s.id`,
-      [actor.shopId, customerId],
-    );
-    for (const invoice of invoices) {
-      const amount = Math.min(remaining, invoice.due);
-      if (amount > 0) {
-        await tx.query(
-          'INSERT INTO repayment_allocations(shop_id,ledger_id,sale_id,amount) VALUES($1,$2,$3,$4)',
-          [actor.shopId, p.operationId, invoice.id, amount],
-        );
-        remaining -= amount;
-      }
-      if (!remaining) break;
-    }
-    assert(
-      remaining === 0,
-      409,
-      'LEDGER_REVIEW',
-      'Invoice balances require reconciliation before recording this payment',
-    );
+    const bySale = new Map<string, number>();
+    for (const a of plan) bySale.set(a.saleId, (bySale.get(a.saleId) ?? 0) + a.amount);
+    for (const [saleId, amount] of bySale)
+      await tx.query(
+        'INSERT INTO repayment_allocations(shop_id,ledger_id,sale_id,amount) VALUES($1,$2,$3,$4)',
+        [actor.shopId, p.operationId, saleId, amount],
+      );
+    for (const a of plan)
+      await tx.query(
+        'INSERT INTO installment_allocations(shop_id,ledger_id,installment_id,amount) VALUES($1,$2,$3,$4)',
+        [actor.shopId, p.operationId, a.installmentId, a.amount],
+      );
     if (p.payment.method === 'cash')
       await cashMovement(
         tx,
@@ -70,7 +71,7 @@ export async function repay(db: Database, actor: Actor, customerId: string, inpu
         'Customer repayment',
       );
     await audit(tx, actor, 'customer.repayment', customerId, p);
-    return { id: p.operationId, balance: balance - p.payment.amount };
+    return { id: p.operationId, balance: balance - p.payment.amount, allocations: plan };
   });
 }
 export async function expense(db: Database, actor: Actor, input: unknown) {

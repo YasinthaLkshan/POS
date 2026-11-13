@@ -2,7 +2,7 @@ import { app } from 'electron';
 import { resolve, join } from 'node:path';
 import type { Server } from 'node:http';
 import { createApp } from '../../../api/src/app';
-import { postgres, type Database } from '../../../api/src/database/db';
+import { ensureDatabase, postgres, type Database } from '../../../api/src/database/db';
 import { runMigrations } from '../../../api/src/database/migrate';
 import { passwordAuthentication } from '../../../api/src/middleware/auth';
 import { ensureAdministrator } from '../../../api/src/services/bootstrap';
@@ -21,10 +21,12 @@ function migrationDirectory() {
 export async function startEmbeddedApi(input: {
   databaseUrl: string;
   signingKey: string;
+  createDatabase?: boolean;
   adminPassword?: string;
   shopName?: string;
   existingStaffId?: string;
 }): Promise<EmbeddedApi> {
+  if (input.createDatabase) await ensureDatabase(input.databaseUrl);
   const db: Database = postgres(input.databaseUrl);
   let server: Server | undefined;
   try {

@@ -41,7 +41,23 @@ Amounts are integer cents, quantities integer thousandths, rates basis points. S
 | `POST /sync/terminals`, `/sync/provision`, `/sync/push`                   | Terminal approval, offline authorization and durable receipt upload.                                 |
 | `GET /sync/status`, `/sync/conflicts`, `POST /sync/conflicts/:id/resolve` | Synchronization status and manager reconciliation.                                                   |
 
-Report kinds: `products`, `categories`, `employees`, `inventory`, `low-stock`, `expiry`, `purchases`, `expenses`, `customer-balances`, `supplier-balances`, `cash-closing`, `returns`, `movements`, `audit`. Audit access requires staff-management permission. Date ranges are at most 366 days.
+| `GET/POST /factories`, `PATCH /factories/:id` | Search, create and edit factories. |
+| `GET /factories/:id`, `/factories/:id/report` | Drivers, combined driver balances, upcoming/overdue installments, driver sales; printable report. |
+| `GET/POST /drivers?search=&factoryId=`, `PATCH /drivers/:id` | Lorry drivers (customers with `kind=driver`, auto `DRV-0001` IDs). Duplicate names need `confirmDuplicate`. |
+| `GET /drivers/:id`, `/customers/:id/credit-profile`, `/drivers/:id/statement` | Totals, invoices, payments, installments and monthly dues derived from transactions; statement. |
+| `GET /customers?kind=registered\|driver\|walk_in\|all` | Customer list by kind (default `registered`). |
+| `GET/POST /product-families`, `PATCH /product-families/:id`, `POST /product-families/:id/variants` | Products with sizes; each variant is a product with its own SKU, price and stock. |
+| `GET/POST /driver-discounts` | Per-unit driver discount rule for a variant (`price.write`). |
+| `POST /inventory/receipts`, `/inventory/conversions` | Stock receipt without an order; explicit bag-to-loose conversion. |
+| `GET /products/:id/stock-history` | Movements with before/after balances. |
+| `GET /credit/due?status=&type=&factoryId=&search=` | Installments sorted overdue → due today → nearest; summary by status. |
+| `GET /customers/:id/installments`, `POST /customers/:id/payments/preview` | Installment balances; allocation preview before recording a payment. |
+| `GET /repayments/:id/receipt` | Payment receipt with settled installments and remaining balance. |
+| `GET /reports/business?from=&to=&details=true` | Daily accounting summary (gross/net sales, cash, credit, repayments, refunds, dues). |
+
+Checkout additions: `customerId` may be a driver (automatic per-variant discounts, default two monthly installments) or a registered/quick-credit record; `creditCustomer: {name, phone?, notes?}` creates a quick credit record; `schedule: [{dueDate, amount}]` sets custom installments; `dueDate` sets a single due date. Credit equals the total minus payments. Repayments accept `allocations: [{installmentId, amount}]` and `notes`; otherwise the oldest due installment is paid first.
+
+Report kinds: `products`, `categories`, `employees`, `inventory`, `low-stock`, `expiry`, `purchases`, `expenses`, `customer-balances`, `supplier-balances`, `cash-closing`, `returns`, `movements`, `audit`, `business-summary`, `daily-sales`, `cash-sales`, `credit-sales`, `mixed-sales`, `repayments`, `outstanding`, `due-today`, `overdue`, `driver-credit`, `normal-credit`, `factory-credit`, `discounts`, `stock`. Audit access requires staff-management permission. Date ranges are at most 366 days.
 
 ## Checkout example
 

@@ -87,10 +87,11 @@ export function CashSessions() {
             },
             {
               key: 'action',
-              title: '',
+              title: 'Actions',
+              align: 'end',
               value: (r) =>
                 !r.closed_at && (
-                  <div className="inline">
+                  <div className="row-actions">
                     <button className="btn secondary small" onClick={() => begin('close', r)}>
                       Close & reconcile
                     </button>

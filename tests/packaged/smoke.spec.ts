@@ -27,7 +27,7 @@ test('packaged Windows executable starts with a sandbox and loads native SQLite'
       errors.join('\n'),
     ).toBeVisible({ timeout: 15000 });
     const info = await page.evaluate(() => window.desktop.info());
-    expect(info.version).toBe('0.5.0');
+    expect(info.version).toBe('0.6.0');
     expect(info.contextIsolated).toBe(true);
     expect(info.sandboxed).toBe(true);
     expect(await page.evaluate(() => typeof Reflect.get(window, 'require'))).toBe('undefined');

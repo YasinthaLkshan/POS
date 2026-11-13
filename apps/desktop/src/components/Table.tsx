@@ -5,6 +5,7 @@ export interface Column<T> {
   title: string;
   value: (row: T) => ReactNode;
   sort?: (row: T) => string | number;
+  align?: 'end';
 }
 export function Table<T>({
   rows,
@@ -62,7 +63,7 @@ export function Table<T>({
           <thead>
             <tr>
               {columns.map((c) => (
-                <th key={c.key}>
+                <th key={c.key} className={c.align === 'end' ? 'cell-end' : undefined}>
                   {c.sort ? (
                     <button
                       className="table-sort"
@@ -87,7 +88,9 @@ export function Table<T>({
             {filtered.slice(current * 12, current * 12 + 12).map((row, index) => (
               <tr key={index}>
                 {columns.map((c) => (
-                  <td key={c.key}>{c.value(row)}</td>
+                  <td key={c.key} className={c.align === 'end' ? 'cell-end' : undefined}>
+                    {c.value(row)}
+                  </td>
                 ))}
               </tr>
             ))}

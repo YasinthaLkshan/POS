@@ -1,6 +1,13 @@
 import { useState } from 'react';
-import { reportKinds, money, quantity, type Report, type ReportKind } from '@agripos/shared';
-import { useData } from '../services/api';
+import {
+  reportKinds,
+  reportLabels,
+  money,
+  quantity,
+  type Report,
+  type ReportKind,
+} from '@agripos/shared';
+import { displayDate, useData } from '../services/api';
 import { exportReport } from '../services/export';
 import { useAllowed } from '../stores/session';
 import { QueryState } from './common';
@@ -20,7 +27,7 @@ export function DetailedReports({ from, to }: { from: string; to: string }) {
               .filter((k) => k !== 'audit' || admin)
               .map((k) => (
                 <option key={k} value={k}>
-                  {k.replaceAll('-', ' ')}
+                  {reportLabels[k] ?? k.charAt(0).toUpperCase() + k.slice(1).replaceAll('-', ' ')}
                 </option>
               ))}
           </select>
@@ -73,21 +80,24 @@ export function DetailedReports({ from, to }: { from: string; to: string }) {
             More than 10,000 rows match. Narrow the date range to export the complete report.
           </div>
         )}
-        <h2>{query.data?.title}</h2>
+        <h2 className="section-title">{query.data?.title}</h2>
         <Table
           rows={query.data?.rows ?? []}
           searchText={(r) => Object.values(r).join(' ')}
           columns={(query.data?.columns ?? []).map((c) => ({
             key: c.key,
             title: c.label,
+            align: c.format === 'money' || c.format === 'quantity' ? ('end' as const) : undefined,
             value: (r: Record<string, unknown>) =>
-              r[c.key] == null
+              r[c.key] == null || r[c.key] === ''
                 ? '—'
                 : c.format === 'money'
                   ? money(Number(r[c.key]))
                   : c.format === 'quantity'
                     ? quantity(Number(r[c.key]))
-                    : String(r[c.key]),
+                    : c.format === 'date'
+                      ? displayDate(String(r[c.key]))
+                      : String(r[c.key]),
             sort: (r: Record<string, unknown>) =>
               typeof r[c.key] === 'number' ? (r[c.key] as number) : String(r[c.key] ?? ''),
           }))}

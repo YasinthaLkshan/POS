@@ -77,6 +77,15 @@ export async function saveProduct(db: Database, actor: Actor, input: unknown, pr
       'UPDATE products SET purchase_unit=$2,purchase_factor=$3,reorder_quantity=$4,subcategory=$5 WHERE id=$1',
       [row.id, p.purchaseUnit ?? p.unit, p.purchaseFactor, p.reorderQuantity, p.subcategory],
     );
+    if (p.familyId !== undefined || p.variantLabel !== undefined || p.wholeUnits !== undefined) {
+      const updated = (
+        await tx.query(
+          'UPDATE products SET family_id=COALESCE($2,family_id),variant_label=COALESCE($3,variant_label),whole_units=COALESCE($4,whole_units) WHERE id=$1 RETURNING family_id,variant_label,whole_units',
+          [row.id, p.familyId ?? null, p.variantLabel ?? null, p.wholeUnits ?? null],
+        )
+      )[0]!;
+      Object.assign(row, updated);
+    }
     await audit(tx, actor, productId ? 'product.update' : 'product.create', String(row.id), p);
     return Object.assign(row, {
       purchase_unit: p.purchaseUnit ?? p.unit,
@@ -135,10 +144,11 @@ export async function saveContact(
 export async function products(db: Database, actor: Actor, search = '', limit = 25, page = 1) {
   requirePermission(actor, 'catalog.read');
   const rows = await db.query(
-    `SELECT p.*,c.name category,c.kind,
+    `SELECT p.*,c.name category,c.kind,f.name family,COALESCE(d.amount,0)::bigint driver_discount,
     COALESCE((SELECT SUM(b.quantity)::bigint FROM batches b WHERE b.product_id=p.id AND (b.expiry_date IS NULL OR b.expiry_date >= (now() AT TIME ZONE 'Asia/Colombo')::date)),0)::bigint stock,
     COUNT(*) OVER()::int row_count FROM products p JOIN categories c ON c.id=p.category_id
-    WHERE p.shop_id=$1 AND (p.name ILIKE $2 OR p.sku ILIKE $2 OR p.barcode ILIKE $2) ORDER BY p.name,p.id LIMIT $3 OFFSET $4`,
+    LEFT JOIN product_families f ON f.id=p.family_id LEFT JOIN driver_discounts d ON d.product_id=p.id AND d.shop_id=p.shop_id
+    WHERE p.shop_id=$1 AND (p.name ILIKE $2 OR p.sku ILIKE $2 OR p.barcode ILIKE $2 OR f.name ILIKE $2) ORDER BY COALESCE(f.name,p.name),p.variant_label,p.name,p.id LIMIT $3 OFFSET $4`,
     [actor.shopId, `%${search}%`, limit, (page - 1) * limit],
   );
   return {

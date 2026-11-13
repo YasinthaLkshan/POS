@@ -1,13 +1,23 @@
 import { useState } from 'react';
-import { decimalToInteger } from '@agripos/shared';
-import { useQueryClient } from '@tanstack/react-query';
-import { Building2, Printer, Palette, ShieldCheck } from 'lucide-react';
+import { decimalToInteger, money } from '@agripos/shared';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  Building2,
+  Printer,
+  Palette,
+  ShieldCheck,
+  DatabaseBackup,
+  CalendarClock,
+  Truck,
+} from 'lucide-react';
 import { api, useData } from '../services/api';
 import { useAllowed, useSession } from '../stores/session';
 import { FormDialog } from '../components/FormDialog';
 import { PageHeading, QueryState } from '../components/common';
 import { toast } from 'sonner';
 import { shortcuts, shortcutKeys, defaultShortcuts } from '../services/shortcuts';
+const when = (value: string | null) =>
+  value ? new Date(value).toLocaleString('en-LK') : 'Not yet';
 interface Settings {
   email: string;
   registration_number: string;
@@ -20,6 +30,121 @@ interface Settings {
   receipt_footer: string;
   expiry_alert_days: number;
   require_cash_session: boolean;
+  driver_installments: number;
+  driver_credit_months: number;
+  normal_credit_months: number;
+  due_soon_days: number;
+  next_invoice_number: number;
+}
+const settingsBody = (s: Settings) => ({
+  name: s.name,
+  address: s.address,
+  phone: s.phone,
+  receiptFooter: s.receipt_footer,
+  expiryAlertDays: s.expiry_alert_days,
+  requireCashSession: s.require_cash_session,
+  email: s.email,
+  registrationNumber: s.registration_number,
+  taxNumber: s.tax_number,
+  defaultTaxBps: s.default_tax_bps,
+  invoicePrefix: s.invoice_prefix,
+});
+function DriverDiscountRules() {
+  const rules = useData<
+    {
+      product_id: string;
+      name: string;
+      unit: string;
+      selling_price: number;
+      amount: number;
+      family: string | null;
+    }[]
+  >('/driver-discounts');
+  const [drafts, setDrafts] = useState<Record<string, string>>({}),
+    [filter, setFilter] = useState('');
+  const cache = useQueryClient();
+  const rows = (rules.data ?? []).filter((r) =>
+    r.name.toLowerCase().includes(filter.toLowerCase()),
+  );
+  return (
+    <section className="panel settings-card full-span">
+      <Truck />
+      <h2>Lorry driver discounts</h2>
+      <p className="muted">
+        Discount per unit of each size, applied automatically only when the sale is for a lorry
+        driver. Example: Rs. 10 per 25 kg bag gives Rs. 30 off three bags.
+      </p>
+      <input
+        className="settings-search"
+        aria-label="Filter driver discounts"
+        placeholder="Filter products…"
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+      />
+      <QueryState query={rules}>
+        <div className="table-scroll" style={{ maxHeight: 360 }}>
+          <table className="compact-table">
+            <thead>
+              <tr>
+                <th>Product / size</th>
+                <th className="numeric">Price</th>
+                <th className="numeric">Discount per unit (LKR)</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const draft = drafts[r.product_id];
+                return (
+                  <tr key={r.product_id}>
+                    <td>
+                      {r.name}
+                      <small className="block muted">per {r.unit}</small>
+                    </td>
+                    <td className="numeric">{money(r.selling_price)}</td>
+                    <td className="numeric">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        aria-label={`Driver discount for ${r.name}`}
+                        value={draft ?? String(r.amount / 100)}
+                        onChange={(e) => setDrafts({ ...drafts, [r.product_id]: e.target.value })}
+                      />
+                    </td>
+                    <td className="numeric">
+                      <button
+                        className="btn secondary small"
+                        disabled={draft === undefined}
+                        onClick={async () => {
+                          try {
+                            await api('/driver-discounts', 'POST', {
+                              productId: r.product_id,
+                              amount: decimalToInteger(draft || '0'),
+                            });
+                            const next = { ...drafts };
+                            delete next[r.product_id];
+                            setDrafts(next);
+                            await cache.invalidateQueries();
+                            toast.success(`Driver discount saved for ${r.name}`);
+                          } catch (e) {
+                            toast.error(e instanceof Error ? e.message : 'Unable to save');
+                          }
+                        }}
+                      >
+                        Save
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {!rows.length && <div className="empty">No products found.</div>}
+        </div>
+      </QueryState>
+    </section>
+  );
 }
 export function Settings() {
   const [keys, setKeys] = useState(shortcuts()),
@@ -32,8 +157,16 @@ export function Settings() {
   const [printer, setPrinter] = useState(localStorage.getItem('agripos-printer') ?? ''),
     [paper, setPaper] = useState(localStorage.getItem('agripos-paper') ?? '80mm');
   const allowed = useAllowed('settings.write'),
+    canPrice = useAllowed('price.write'),
     { theme, setTheme, user, setUser } = useSession(),
     cache = useQueryClient();
+  const [creditEdit, setCreditEdit] = useState(false);
+  const backup = useQuery({
+      queryKey: ['backup-status'],
+      queryFn: () => window.desktop.backupStatus(),
+      refetchInterval: 10000,
+    }),
+    [backingUp, setBackingUp] = useState(false);
   return (
     <>
       <PageHeading title="Settings" description="Make AgriPOS feel at home in your shop." />
@@ -48,15 +181,64 @@ export function Settings() {
           </button>
         </section>
         <section className="panel settings-card">
+          <DatabaseBackup />
           <h2>Backup and recovery</h2>
-          <p>
-            Cloud backups are managed by your shop administrator. Synchronize all offline receipts
-            before closing AgriPOS for a local backup.
-          </p>
-          <p className="muted">
-            Back up the complete application data folder while AgriPOS is closed. Encrypted data
-            requires the original Windows account. See the deployment guide for restoration steps.
-          </p>
+          {backup.data?.role === 'main' ? (
+            <>
+              <p>
+                This is the main shop computer. Shop data is saved to a backup file every 30 minutes
+                {backup.data.cloudConfigured ? ' and copied to the cloud when online' : ''}.
+              </p>
+              <p className="muted">
+                Last backup on this computer: {when(backup.data.lastLocalAt)}
+                <br />
+                Last cloud copy:{' '}
+                {backup.data.cloudConfigured
+                  ? when(backup.data.lastCloudAt)
+                  : 'Not configured. Add a Neon URL in Connect your shop.'}
+              </p>
+              {!backup.data.toolsFound && (
+                <div className="alert danger">
+                  PostgreSQL backup tools were not found on this computer.
+                </div>
+              )}
+              {backup.data.lastError && (
+                <div className="alert danger">Last backup failed: {backup.data.lastError}</div>
+              )}
+              <button
+                className="btn"
+                disabled={backup.data.running || backingUp}
+                onClick={async () => {
+                  setBackingUp(true);
+                  try {
+                    const result = await window.desktop.backupNow();
+                    if (result.error) throw new Error(result.error.message);
+                    toast.success('Backup completed');
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : 'Backup failed');
+                  } finally {
+                    setBackingUp(false);
+                    void backup.refetch();
+                  }
+                }}
+              >
+                {backup.data.running || backingUp ? 'Backing up…' : 'Back up now'}
+              </button>
+            </>
+          ) : (
+            <>
+              <p>
+                {backup.data?.role === 'till'
+                  ? 'This till uses the shop database on the main computer. Backups run there.'
+                  : 'Backups run on the main shop computer.'}
+              </p>
+              <p className="muted">
+                Synchronize offline receipts before closing AgriPOS. Images and local receipts are
+                stored in this computer’s application data folder; back it up while AgriPOS is
+                closed.
+              </p>
+            </>
+          )}
         </section>
         <section className="panel settings-card">
           <Building2 />
@@ -67,26 +249,48 @@ export function Settings() {
             <p>{query.data?.phone || 'No contact number configured'}</p>
             <p className="muted">Receipt footer: {query.data?.receipt_footer}</p>
             {allowed && (
-              <button className="btn secondary" onClick={() => setEdit(true)}>
-                Edit shop details
-              </button>
-            )}
-            {allowed && (
-              <button
-                className="btn secondary"
-                onClick={async () => {
-                  try {
-                    const result = await window.desktop.uploadShopLogo();
-                    if (!result.cancelled) {
-                      await cache.invalidateQueries();
-                      toast.success('Shop logo saved on this computer');
+              <div className="inline">
+                <button className="btn secondary" onClick={() => setEdit(true)}>
+                  Edit shop details
+                </button>
+                <button
+                  className="btn secondary"
+                  onClick={async () => {
+                    try {
+                      const result = await window.desktop.uploadShopLogo();
+                      if (!result.cancelled) {
+                        await cache.invalidateQueries();
+                        toast.success('Shop logo saved on this computer');
+                      }
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : 'Logo upload failed');
                     }
-                  } catch (e) {
-                    toast.error(e instanceof Error ? e.message : 'Logo upload failed');
-                  }
-                }}
-              >
-                Add shop logo here
+                  }}
+                >
+                  Add shop logo here
+                </button>
+              </div>
+            )}
+          </QueryState>
+        </section>
+        <section className="panel settings-card">
+          <CalendarClock />
+          <h2>Credit and invoices</h2>
+          <QueryState query={query}>
+            <p className="muted">
+              Driver credit: {query.data?.driver_installments} installment(s) over{' '}
+              {query.data?.driver_credit_months} month(s)
+              <br />
+              Normal customer credit: due after {query.data?.normal_credit_months} month(s)
+              <br />
+              “Due soon” reminder: {query.data?.due_soon_days} day(s) before the due date
+              <br />
+              Next invoice: {query.data?.invoice_prefix}-
+              {String(query.data?.next_invoice_number ?? 1).padStart(6, '0')}
+            </p>
+            {allowed && (
+              <button className="btn secondary" onClick={() => setCreditEdit(true)}>
+                Edit credit and invoice settings
               </button>
             )}
           </QueryState>
@@ -142,22 +346,6 @@ export function Settings() {
               ))}
             </select>
           </label>
-          <button
-            className="btn secondary"
-            onClick={() => {
-              const amount = Number(margin);
-              if (!Number.isFinite(amount) || amount < 0 || amount > 10) {
-                toast.error('Receipt margin must be between 0 and 10 mm');
-                return;
-              }
-              localStorage.setItem('agripos-margin', String(amount));
-              localStorage.setItem('agripos-printer', printer);
-              localStorage.setItem('agripos-paper', paper);
-              toast.success('Printer preferences saved');
-            }}
-          >
-            Save printer preferences
-          </button>
           <label>
             Receipt margin (mm)
             <input
@@ -168,7 +356,23 @@ export function Settings() {
               onChange={(e) => setMargin(e.target.value)}
             />
           </label>
-          <div className="inline">
+          <div className="inline wrap">
+            <button
+              className="btn"
+              onClick={() => {
+                const amount = Number(margin);
+                if (!Number.isFinite(amount) || amount < 0 || amount > 10) {
+                  toast.error('Receipt margin must be between 0 and 10 mm');
+                  return;
+                }
+                localStorage.setItem('agripos-margin', String(amount));
+                localStorage.setItem('agripos-printer', printer);
+                localStorage.setItem('agripos-paper', paper);
+                toast.success('Printer preferences saved');
+              }}
+            >
+              Save printer preferences
+            </button>
             {[false, true].map((pdf) => (
               <button
                 key={String(pdf)}
@@ -204,8 +408,8 @@ export function Settings() {
         <section className="panel settings-card">
           <h2>Cashier shortcuts</h2>
           {Object.keys(defaultShortcuts).map((key) => (
-            <label key={key}>
-              {key.replace(/([A-Z])/g, ' $1')}
+            <label key={key} className="capitalize">
+              {key.replace(/([A-Z])/g, ' $1').toLowerCase()}
               <select
                 value={keys[key as keyof typeof keys]}
                 onChange={(e) => setKeys({ ...keys, [key]: e.target.value })}
@@ -230,7 +434,72 @@ export function Settings() {
             Save shortcuts
           </button>
         </section>
+        {canPrice && <DriverDiscountRules />}
       </div>
+      {creditEdit && query.data && (
+        <FormDialog
+          title="Credit and invoice settings"
+          description="New credit sales use these defaults. You can still change dates and installments for each sale."
+          fields={[
+            {
+              name: 'driverInstallments',
+              label: 'Driver installments per credit sale',
+              type: 'number',
+              min: 1,
+              required: true,
+            },
+            {
+              name: 'driverCreditMonths',
+              label: 'Driver credit period (months)',
+              type: 'number',
+              min: 1,
+              required: true,
+            },
+            {
+              name: 'normalCreditMonths',
+              label: 'Normal customer repayment period (months)',
+              type: 'number',
+              min: 1,
+              required: true,
+            },
+            {
+              name: 'dueSoonDays',
+              label: 'Show “due soon” this many days before',
+              type: 'number',
+              min: 0,
+              required: true,
+            },
+            {
+              name: 'nextInvoiceNumber',
+              label: `Next invoice number (${query.data.invoice_prefix}-…)`,
+              type: 'number',
+              min: query.data.next_invoice_number,
+              required: true,
+              hint: 'Can only move forward so invoice numbers are never reused.',
+            },
+          ]}
+          initial={{
+            driverInstallments: String(query.data.driver_installments),
+            driverCreditMonths: String(query.data.driver_credit_months),
+            normalCreditMonths: String(query.data.normal_credit_months),
+            dueSoonDays: String(query.data.due_soon_days),
+            nextInvoiceNumber: String(query.data.next_invoice_number),
+          }}
+          onClose={() => setCreditEdit(false)}
+          onSave={async (v) => {
+            await api('/settings', 'PATCH', {
+              ...settingsBody(query.data!),
+              driverInstallments: Number(v.driverInstallments),
+              driverCreditMonths: Number(v.driverCreditMonths),
+              normalCreditMonths: Number(v.normalCreditMonths),
+              dueSoonDays: Number(v.dueSoonDays),
+              nextInvoiceNumber: Number(v.nextInvoiceNumber),
+            });
+            await cache.invalidateQueries();
+            toast.success('Credit settings saved');
+          }}
+        />
+      )}
       {edit && query.data && (
         <FormDialog
           title="Shop details"

@@ -1,19 +1,47 @@
-# AgriPOS setup with Neon
+# AgriPOS shop setup
 
-AgriPOS runs its API inside the Windows desktop app. Business records and account hashes live in Neon PostgreSQL. Product images and the shop logo stay on each desktop separately. Firebase, Supabase, Google Cloud billing, and a separate API command are not required.
+AgriPOS keeps the shop database on one **main shop computer**. Every till, including the main computer itself, connects to that database over the shop network (Wi-Fi or cable), so all features keep working when the internet is down. A Neon PostgreSQL database is used as an automatic cloud backup. Product images and the shop logo stay on each desktop separately.
 
-## First launch
+## 1. Prepare the main shop computer
 
-1. In [Neon Console](https://console.neon.tech/), open your project, choose **Connect**, select your database and role, turn **Connection pooling off**, and copy the **direct** PostgreSQL connection URL. Keep its `sslmode=require` setting. [Neon connection guide](https://neon.com/docs/connect/connect-from-any-app).
-2. Install and open AgriPOS. Click **Connect your shop** on the sign-in screen.
-3. Paste the Neon URL. For a new empty database, enter an initial administrator password of at least 12 characters and optionally a shop name. Click **Save**. AgriPOS creates the tables, creates the first `admin` account, and starts its local API automatically.
-4. Sign in with username `admin` and your chosen password. Change it from Settings if you previously shared it.
+1. Install [PostgreSQL for Windows](https://www.postgresql.org/download/windows/) (version 18 recommended) and remember the `postgres` user password you choose.
+2. Give the computer a fixed IP address in your router (DHCP reservation) so the tills can always find it.
+3. In Windows **Settings > Network**, set the shop network to **Private**.
+4. Open PowerShell **as Administrator** in the AgriPOS folder and review, then run, the setup script:
 
-You only need the URL again if you move to a new Windows profile or reinstall without retaining the app profile. The URL is encrypted in that profile using Windows secure storage. Do not send it in chat or put it in source code. Each desktop connects to the same Neon database, but images must be added on each desktop separately.
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts\setup-shop-server.ps1 -DryRun
+   powershell -ExecutionPolicy Bypass -File scripts\setup-shop-server.ps1
+   ```
 
-## Existing Neon database
+   It creates an `agripos` database user and database, allows password connections from the shop network only, opens the PostgreSQL port for that network in Windows Firewall, and prints the connection URLs. Use `-Network 192.168.1.0/24` if the detected network is wrong. The original `pg_hba.conf` is copied before it is changed.
 
-If the database already contains an active administrator with a username and password hash, paste only the URL. If it contains a shop and an administrator staff row without a username, provide that staff row's UUID in **Existing administrator staff ID** and choose an initial password. This links the existing administrator to the `admin` login. Back up existing shop data before migrating it.
+A single-till shop can skip the network steps (2–4) and connect with the `postgres` user to `localhost`.
+
+## 2. Connect AgriPOS on the main computer
+
+1. Open AgriPOS and click **Connect your shop**.
+2. Choose **The main shop computer**.
+3. Shop database URL: `postgresql://agripos:PASSWORD@localhost:5432/agripos`. Percent-encode special characters in the password (for example `@` becomes `%40`).
+4. Cloud backup URL (optional, recommended): in [Neon Console](https://console.neon.tech/), create an **empty** database using the same PostgreSQL major version as the main computer, choose **Connect**, turn **Connection pooling off**, and copy the direct URL with `sslmode=require`.
+5. For a new shop, enter an initial administrator password of at least 12 characters and a shop name. Click **Save**. AgriPOS creates the database if needed, applies migrations, and creates the `admin` account.
+6. Sign in as `admin`.
+
+## 3. Connect each other till
+
+Click **Connect your shop**, choose **A till**, and enter the URL printed by the setup script, for example `postgresql://agripos:PASSWORD@192.168.1.20:5432/agripos` (the main computer's fixed IP address or computer name). Leave the cloud backup URL and initial password empty.
+
+Each till then has every feature: sales, credit, returns, purchasing, stock, reports and cash registers. Stock and credit limits stay correct because all tills use the same database.
+
+## Backups
+
+The main computer saves a backup file every 30 minutes and when you click **Settings > Backup and recovery > Back up now**. The last 48 files are kept in the AgriPOS application data folder under `backups`. When the internet is available, each backup also replaces the Neon cloud copy in a single transaction; if the copy fails, the previous cloud copy stays intact and Settings shows the error.
+
+AgriPOS refuses to overwrite a cloud database that holds a different shop or newer activity than the main computer. That prevents an old till still connected directly to Neon from losing sales. Restoring and other recovery steps are in [DEPLOYMENT.md](DEPLOYMENT.md).
+
+## When the main computer is unavailable
+
+If a till cannot reach the main computer (for example, it is switched off), use **Offline & sync** for walk-in cash sales from a prepared snapshot. Receipts upload automatically once the main computer is reachable again. See [OFFLINE_SYNC.md](OFFLINE_SYNC.md).
 
 ## Build or develop
 
@@ -30,10 +58,11 @@ To build the Windows installer after code changes:
 npm run package:win
 ```
 
-PowerShell users can type `npm.cmd` in place of `npm`. An installed AgriPOS app does not need Node, CMD, `npm run dev:api`, or a repository `.env` file. `.env` and the old `db:migrate`/`setup:admin` commands are for optional command-line administration and independent API deployment.
+PowerShell users can type `npm.cmd` in place of `npm`. An installed AgriPOS app does not need Node, CMD or a repository `.env` file. `.env` and the `db:migrate`/`setup:admin` commands are for optional command-line administration and independent API deployment.
 
-## Backups and troubleshooting
+## Troubleshooting
 
-Back up Neon data and each desktop's AgriPOS user profile independently. Synchronize pending offline sales before changing databases. If login says to connect your shop, open **Connect your shop** and paste the direct Neon URL. If connection fails, check internet access, the Neon role/password, SSL option and whether the project is active. If an image is missing on another computer, add it there; images are intentionally local.
-
-The old Firebase SQL Connect/Cloud SQL trial is separate from this application. Changing AgriPOS does not cancel that cloud resource.
+- **A till cannot connect:** check that the main computer is on, the network is Private, the IP address in the URL is current, and the Windows Firewall rule "AgriPOS shop database" exists on the main computer.
+- **Backup tools not found:** install PostgreSQL on the main computer, or set the `AGRIPOS_PG_BIN` environment variable to its `bin` folder.
+- **Cloud copy refused:** read the message in Settings. Use an empty Neon database, and make sure no till still connects to Neon directly.
+- **Image missing on another computer:** add it there; images are intentionally local.

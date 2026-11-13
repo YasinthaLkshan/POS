@@ -19,6 +19,10 @@ import { Settings } from '../pages/Settings';
 import { CashSessions } from '../pages/CashSessions';
 import { Sync } from '../pages/Sync';
 import { Notifications } from '../pages/Notifications';
+import { CreditManagement } from '../pages/Credit';
+import { Factories } from '../pages/Factories';
+import { Drivers } from '../pages/Drivers';
+import { DailyBusiness } from '../pages/DailyBusiness';
 const cache = new QueryClient({ defaultOptions: { queries: { staleTime: 10000, retry: 1 } } });
 function Guard({ permission, children }: { permission: Permission; children: ReactNode }) {
   return useAllowed(permission) ? children : <Navigate to="/" replace />;
@@ -113,7 +117,31 @@ export function App() {
                 path="credit"
                 element={
                   <Guard permission="payments.write">
-                    <Contacts key="credit" kind="customers" credit />
+                    <CreditManagement />
+                  </Guard>
+                }
+              />
+              <Route
+                path="factories"
+                element={
+                  <Guard permission="customers.write">
+                    <Factories />
+                  </Guard>
+                }
+              />
+              <Route
+                path="drivers"
+                element={
+                  <Guard permission="customers.write">
+                    <Drivers />
+                  </Guard>
+                }
+              />
+              <Route
+                path="daily"
+                element={
+                  <Guard permission="reports.read">
+                    <DailyBusiness />
                   </Guard>
                 }
               />

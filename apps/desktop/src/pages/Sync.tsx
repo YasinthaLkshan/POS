@@ -101,7 +101,7 @@ export function Sync() {
               : 'You are using live shop data.'}
           </p>
         </section>
-        <h2>Receipts awaiting synchronization</h2>
+        <h2 className="section-title">Receipts awaiting synchronization</h2>
         <Table
           rows={status.data?.operations ?? []}
           searchText={(r) => `${r.id} ${r.state} ${r.message}`}
@@ -127,7 +127,7 @@ export function Sync() {
       </QueryState>
       {manager && !user?.offline && (
         <>
-          <h2>Shop reconciliation</h2>
+          <h2 className="section-title">Shop reconciliation</h2>
           <QueryState query={conflicts}>
             <Table
               rows={conflicts.data ?? []}
@@ -143,6 +143,7 @@ export function Sync() {
                 {
                   key: 'action',
                   title: 'Action',
+                  align: 'end',
                   value: (r) => (
                     <button className="text-btn" onClick={() => setResolve(r.id)}>
                       Review / retry
