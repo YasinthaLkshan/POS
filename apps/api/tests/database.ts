@@ -1,7 +1,9 @@
 import { PGlite } from '@electric-sql/pglite';
 import { readFile, readdir } from 'node:fs/promises';
 import type { Connection, Database, Row } from '../src/database/db';
-export async function testDatabase(): Promise<Database> {
+import { LocalDatabase } from '../src/database/sqlite';
+export async function testDatabase(engine?: 'postgres'): Promise<Database> {
+  if (!engine && process.env.AGRIPOS_SQLITE_TEST === '1') return new LocalDatabase(':memory:');
   const pg = new PGlite();
   for (const name of (await readdir('supabase/migrations'))
     .filter((n) => n.endsWith('.sql'))

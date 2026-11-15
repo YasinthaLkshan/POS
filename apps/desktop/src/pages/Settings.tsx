@@ -182,63 +182,32 @@ export function Settings() {
         </section>
         <section className="panel settings-card">
           <DatabaseBackup />
-          <h2>Backup and recovery</h2>
-          {backup.data?.role === 'main' ? (
-            <>
-              <p>
-                This is the main shop computer. Shop data is saved to a backup file every 30 minutes
-                {backup.data.cloudConfigured ? ' and copied to the cloud when online' : ''}.
-              </p>
-              <p className="muted">
-                Last backup on this computer: {when(backup.data.lastLocalAt)}
-                <br />
-                Last cloud copy:{' '}
-                {backup.data.cloudConfigured
-                  ? when(backup.data.lastCloudAt)
-                  : 'Not configured. Add a Neon URL in Connect your shop.'}
-              </p>
-              {!backup.data.toolsFound && (
-                <div className="alert danger">
-                  PostgreSQL backup tools were not found on this computer.
-                </div>
-              )}
-              {backup.data.lastError && (
-                <div className="alert danger">Last backup failed: {backup.data.lastError}</div>
-              )}
-              <button
-                className="btn"
-                disabled={backup.data.running || backingUp}
-                onClick={async () => {
-                  setBackingUp(true);
-                  try {
-                    const result = await window.desktop.backupNow();
-                    if (result.error) throw new Error(result.error.message);
-                    toast.success('Backup completed');
-                  } catch (e) {
-                    toast.error(e instanceof Error ? e.message : 'Backup failed');
-                  } finally {
-                    setBackingUp(false);
-                    void backup.refetch();
-                  }
-                }}
-              >
-                {backup.data.running || backingUp ? 'Backing up…' : 'Back up now'}
-              </button>
-            </>
-          ) : (
-            <>
-              <p>
-                {backup.data?.role === 'till'
-                  ? 'This till uses the shop database on the main computer. Backups run there.'
-                  : 'Backups run on the main shop computer.'}
-              </p>
-              <p className="muted">
-                Synchronize offline receipts before closing AgriPOS. Images and local receipts are
-                stored in this computer’s application data folder; back it up while AgriPOS is
-                closed.
-              </p>
-            </>
-          )}
+          <h2>Cloud synchronization</h2>
+          <p>
+            Your shop is saved automatically on this computer. Products, sales, accounts and other
+            records synchronize with Neon when internet is available.
+          </p>
+          <p className="muted">Last synchronized: {when(backup.data?.lastCloudAt ?? null)}</p>
+          {backup.data?.lastError && <div className="alert danger">{backup.data.lastError}</div>}
+          <button
+            className="btn"
+            disabled={backingUp || backup.data?.running}
+            onClick={async () => {
+              setBackingUp(true);
+              try {
+                const result = await window.desktop.backupNow();
+                if (result.error) throw new Error(result.error.message);
+                toast.success('Shop synchronized');
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : 'Synchronization pending');
+              } finally {
+                setBackingUp(false);
+                void backup.refetch();
+              }
+            }}
+          >
+            {backingUp || backup.data?.running ? 'Synchronizing…' : 'Sync now'}
+          </button>
         </section>
         <section className="panel settings-card">
           <Building2 />

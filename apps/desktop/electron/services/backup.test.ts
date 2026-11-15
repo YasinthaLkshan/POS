@@ -97,9 +97,9 @@ it('dumps the shop database and restores the cloud copy in one transaction', asy
   expect(env).toEqual({ PGPASSWORD: 'cloud', PGSSLMODE: 'require' });
 });
 it('refuses to overwrite a cloud database holding another shop or newer activity', async () => {
-  const local = await testDatabase(),
-    cloud = await testDatabase(),
-    empty = await testDatabase();
+  const local = await testDatabase('postgres'),
+    cloud = await testDatabase('postgres'),
+    empty = await testDatabase('postgres');
   try {
     const shop = randomUUID(),
       staff = randomUUID();

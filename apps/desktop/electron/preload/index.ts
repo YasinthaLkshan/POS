@@ -6,6 +6,7 @@ const bridge: DesktopBridge = {
   uploadProductImage: (productId) => ipcRenderer.invoke('product:image', productId),
   printReport: (options) => ipcRenderer.invoke('printer:report', options),
   offlineStatus: () => ipcRenderer.invoke('offline:status'),
+  setWorkOffline: (enabled) => ipcRenderer.invoke('offline:mode', enabled),
   prepareOffline: (pin) => ipcRenderer.invoke('offline:prepare', pin),
   unlockOffline: (pin) => ipcRenderer.invoke('offline:unlock', pin),
   syncNow: () => ipcRenderer.invoke('offline:sync'),

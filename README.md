@@ -1,22 +1,22 @@
 ﻿# AgriPOS
 
-Windows desktop POS and inventory management for agricultural retailers in Sri Lanka. The Electron app starts its Express API locally on every till. All tills share a PostgreSQL database on the main shop computer over the shop network, so every feature works during internet outages; the main computer backs it up to Neon automatically. Images and encrypted SQLite transaction payloads stay on each desktop.
+Windows desktop POS for agricultural retailers. SQLite runs the complete shop locally, with the same login and permissions offline. One Neon database synchronizes products, sales, credit, staff and images. No local PostgreSQL installation or offline PIN is required.
 
 See [PROGRESS.md](PROGRESS.md) for release verification and remaining scope. A live Neon connection, physical printer, and signing certificate are not configured in this repository. The included authentication fixtures are isolated tests, never production login bypasses.
 
-Start with [SETUP.md](SETUP.md) for the main shop computer, tills, cloud backup, first administrator and deployment.
+Start with [SETUP.md](SETUP.md) for installation and the single cloud connection.
 
 ## Requirements
 
 - Windows x64 for desktop packaging and hardware validation.
 - Node.js 24.13 or later in the 24.x line; npm (one package manager and committed `package-lock.json`).
-- PostgreSQL (18 recommended) on the main shop computer, and a shop network for other tills. A Neon database is optional, as the cloud backup.
+- One Neon PostgreSQL database and internet for the first synchronization.
 
 ## Development setup
 
 1. Run `npm.cmd ci` at the repository root.
 2. Run `npm.cmd run dev`.
-3. Choose **Connect your shop**, select **The main shop computer**, enter a PostgreSQL URL such as `postgresql://postgres:PASSWORD@localhost:5432/agripos`, and set an initial administrator password. AgriPOS creates the database, applies migrations and starts the local API automatically.
+3. Choose **Connect your shop**, enter your Neon URL, and set an initial administrator password only for a new shop.
 4. Sign in as `admin` with the password you chose.
 
 For a real shop, use the production provisioning instructions in [DEPLOYMENT.md](DEPLOYMENT.md), not the development seed.

@@ -6,6 +6,8 @@ files:
   - out/**/*
   - package.json
 extraResources:
+  - from: resources/logo.jpeg
+    to: branding/logo.jpeg
   - from: ../../supabase/migrations
     to: migrations
 asar: true

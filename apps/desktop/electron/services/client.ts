@@ -5,8 +5,7 @@ import { join } from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
 import { z } from 'zod';
 import { CheckoutJournal } from '../database/journal';
-import { OfflineStore } from '../database/offline';
-import type { OfflineGrant, SyncResult } from '@agripos/shared';
+
 import {
   computerRoles,
   connectionSchema,
@@ -18,102 +17,76 @@ import {
 import { imageId, imageFile, writeImage, readImage, validateImage } from './local-images';
 import { validateApiUrl } from './api-url';
 import { startEmbeddedApi, type EmbeddedApi } from './embedded-api';
-import { checkBackupTarget, copyToCloud, createLocalBackup, findPgTools } from './backup';
-import { postgres } from '../../../api/src/database/db';
-import { logEvent } from './runtime';
+
 let client: ApiSession | null = null;
 let configuration: { apiUrl: string } | null = null;
 let embedded: EmbeddedApi | null = null;
 let starting: Promise<void> | null = null;
 let journal: CheckoutJournal | null = null;
-let offline: OfflineStore | null = null;
-let syncing = false;
-function offlineStore() {
-  if (!safeStorage.isEncryptionAvailable())
-    throw new Error('Windows secure storage is unavailable');
-  return (offline ??= new OfflineStore(join(app.getPath('userData'), 'offline.sqlite'), {
-    encrypt: (value) => safeStorage.encryptString(value),
-    decrypt: (value) => safeStorage.decryptString(value),
-  }));
-}
-export function lockOffline() {
-  offline?.lock();
-}
+export function lockOffline() {}
 export function offlineStatus() {
-  const store = offlineStore(),
-    owner = store.cachedOwner(ownerNamespace());
-  return owner
-    ? store.status(owner)
-    : {
-        authorized: false,
-        unlocked: false,
-        expiresAt: null,
-        staffName: null,
-        lastSyncedAt: null,
-        counts: {},
-        operations: [],
-      };
+  const sync = embedded?.sync;
+  const pending = sync?.pending ?? false;
+  return {
+    authorized: !!sync?.initialized,
+    workOffline: sync?.offline ?? false,
+    unlocked: false,
+    expiresAt: null,
+    staffName: null,
+    lastSyncedAt: sync?.lastSyncedAt ? Date.parse(sync.lastSyncedAt) : null,
+    counts: { pending: pending ? 1 : 0 },
+    operations:
+      pending || sync?.lastError
+        ? [
+            {
+              id: 'shop',
+              state: sync?.lastError?.startsWith('Changes exist') ? 'conflict' : 'pending',
+              message: sync?.lastError ?? 'Shop changes awaiting cloud synchronization',
+              attempts: 0,
+            },
+          ]
+        : [],
+  };
 }
-export async function prepareOffline(pin: string) {
-  if ((await pendingSales()).length)
-    throw new Error('Resolve the pending online checkout before preparing offline access');
-  const result = await onlineRequest<OfflineGrant>({
-    method: 'POST',
-    path: '/sync/provision',
-    body: { terminalId: terminalId() },
-  });
-  if (result.error || !result.data) return result;
-  const session = (await auth().getSession()).data.session;
-  if (!session) throw new Error('Sign in before preparing offline access');
-  offlineStore().provision(`${ownerNamespace()}|${session.user.id}`, result.data, pin);
-  return { data: true };
+export async function prepareOffline(_pin: string) {
+  return {
+    error: {
+      code: 'NOT_NEEDED',
+      message: 'Use your normal username and password. Offline access is automatic.',
+    },
+  };
 }
-export async function unlockOffline(pin: string) {
-  const store = offlineStore(),
-    owner = store.cachedOwner(ownerNamespace());
-  if (!owner) throw new Error('Prepare offline access online first');
-  if (checkoutJournal().pending(owner).length)
-    throw new Error('Resolve the pending online checkout before switching offline');
-  return { data: store.unlock(owner, pin) };
+export async function unlockOffline(_pin: string) {
+  return prepareOffline(_pin);
 }
-export async function syncNow(force = true) {
-  if (syncing) return { data: false };
-  syncing = true;
-  try {
-    const { data } = await auth().getSession();
-    if (!data.session)
-      return { error: { code: 'UNAUTHORIZED', message: 'Sign in online to synchronize receipts' } };
-    const owner = `${ownerNamespace()}|${data.session.user.id}`,
-      store = offlineStore();
-    for (const row of store.queued(owner, force)) {
-      store.begin(row.id);
-      const result = await onlineRequest<SyncResult>({
-        method: 'POST',
-        path: '/sync/push',
-        body: row.operation,
-      });
-      if (result.error || !result.data) {
-        store.fail(row.id, result.error?.message ?? 'Synchronization failed');
-        if (result.error?.code === 'CONNECTION_ERROR' || result.error?.code === 'UNAUTHORIZED')
-          break;
-      } else store.settle(result.data);
-    }
-    return { data: store.status(owner) };
-  } finally {
-    syncing = false;
-  }
+export async function syncNow(_force = true) {
+  if (!embedded) return { data: false };
+  if (embedded.sync.offline)
+    return {
+      error: {
+        code: 'OFFLINE_MODE',
+        message: 'Turn off Work offline to synchronize with the cloud.',
+      },
+    };
+  await embedded.sync.sync();
+  return embedded.sync.lastError
+    ? { error: { code: 'SYNC_PENDING', message: embedded.sync.lastError } }
+    : { data: offlineStatus() };
+}
+export async function setWorkOffline(enabled: boolean) {
+  await ensureEmbeddedStarted();
+  if (!embedded) throw new Error('Connect your shop once before working offline.');
+  await embedded.sync.setOffline(enabled);
+  return offlineStatus();
 }
 function checkoutJournal() {
   return (journal ??= new CheckoutJournal(join(app.getPath('userData'), 'checkout.sqlite')));
 }
 export function closeJournal() {
-  offline?.close();
-  offline = null;
   journal?.close();
   journal = null;
 }
 export async function pendingSales() {
-  if (offline?.unlocked) return [];
   const { data } = await auth().getSession();
   return data.session
     ? checkoutJournal().pending(`${ownerNamespace()}|${data.session.user.id}`)
@@ -141,9 +114,16 @@ function ownerNamespace() {
 }
 export async function configure(input: unknown) {
   const config = connectionSchema.parse(input);
-  if (client) throw new Error('Sign out and restart before changing connections');
+  if (client && (await client.getSession()).data.session)
+    throw new Error('Sign out before changing connections');
   if (starting) await starting.catch(() => undefined);
-  if (embedded) throw new Error('Restart AgriPOS before changing the database');
+  if (embedded?.sync.pending)
+    throw new Error('Synchronize the saved shop changes before changing the cloud connection.');
+  if (embedded) await embedded.stop();
+  embedded = null;
+  starting = null;
+  configuration = null;
+  client = null;
   const previous = storedConfig();
   const signingKey = previous?.signingKey ?? randomUUID() + randomUUID();
   const started = await startEmbeddedApi({
@@ -238,7 +218,11 @@ export async function saveLocalImage(endpoint: string, bytes: Buffer) {
   validateImage(bytes);
   const session = (await auth().getSession()).data.session;
   if (!session) throw new Error('Sign in before saving an image');
-  const result = await onlineRequest({ method: 'POST', path: endpoint, body: { local: true } });
+  const result = await onlineRequest({
+    method: 'POST',
+    path: endpoint,
+    body: { png: bytes.toString('base64') },
+  });
   if (result.error) throw new Error(result.error.message);
   const path = imageFile(app.getPath('userData'), ownerNamespace(), session.user.shopId, productId);
   writeImage(path, bytes);
@@ -246,22 +230,24 @@ export async function saveLocalImage(endpoint: string, bytes: Buffer) {
 export async function apiRequest<T = unknown>(request: ApiRequest): Promise<ApiResult<T>> {
   const localId = request.method === 'GET' ? imageId(request.path) : null;
   if (localId) {
+    const stored = await onlineRequest<{ dataUrl: string | null }>(request);
+    if (stored.error || stored.data?.dataUrl) return stored as ApiResult<T>;
     const session = (await auth().getSession()).data.session;
     if (!session) return { error: { code: 'UNAUTHORIZED', message: 'Sign in to view images' } };
     const path = imageFile(app.getPath('userData'), ownerNamespace(), session.user.shopId, localId);
-    return { data: { dataUrl: readImage(path) } as T };
-  }
-  if (offline?.unlocked) {
-    try {
-      return { data: offline.request(request) as T };
-    } catch (error) {
-      return {
-        error: {
-          code: 'OFFLINE_ACTION',
-          message: error instanceof Error ? error.message : 'Offline operation failed',
-        },
-      };
-    }
+    const localImage = readImage(path);
+    const bundledLogo =
+      localId === 'logo'
+        ? app.isPackaged
+          ? join(process.resourcesPath, 'branding', 'logo.jpeg')
+          : join(app.getAppPath(), 'resources', 'logo.jpeg')
+        : null;
+    const dataUrl =
+      localImage ??
+      (bundledLogo && existsSync(bundledLogo)
+        ? `data:image/jpeg;base64,${readFileSync(bundledLogo).toString('base64')}`
+        : null);
+    return { data: { dataUrl } as T };
   }
   return onlineRequest<T>(request);
 }
@@ -311,78 +297,21 @@ async function onlineRequest<T = unknown>(request: ApiRequest): Promise<ApiResul
     };
   }
 }
-const backupStatePath = () => join(app.getPath('userData'), 'backup-status.json');
-const backupStateSchema = z.object({
-  lastLocalAt: z.string().nullable().default(null),
-  lastCloudAt: z.string().nullable().default(null),
-  lastError: z.string().nullable().default(null),
-});
-let backingUp = false;
-function backupState() {
-  try {
-    return backupStateSchema.parse(JSON.parse(readFileSync(backupStatePath(), 'utf8')));
-  } catch {
-    return backupStateSchema.parse({});
-  }
-}
 export function backupStatus(): BackupStatus {
-  const saved = storedConfig();
+  const sync = embedded?.sync;
   return {
-    role: saved?.role ?? null,
-    cloudConfigured: !!saved?.backupUrl,
-    toolsFound: !!findPgTools(),
-    running: backingUp,
-    ...backupState(),
+    role: 'main',
+    cloudConfigured: !!storedConfig(),
+    toolsFound: true,
+    running: sync?.running ?? false,
+    lastLocalAt: null,
+    lastCloudAt: sync?.lastSyncedAt ?? null,
+    lastError: sync?.lastError ?? null,
   };
 }
 export async function backupNow(): Promise<ApiResult<BackupStatus>> {
-  const saved = storedConfig();
-  if (saved?.role !== 'main')
-    return {
-      error: { code: 'NOT_MAIN', message: 'Backups run on the main shop computer only' },
-    };
-  if (backingUp) return { data: backupStatus() };
-  const tools = findPgTools();
-  if (!tools)
-    return {
-      error: {
-        code: 'TOOLS_MISSING',
-        message:
-          'PostgreSQL backup tools were not found. Install PostgreSQL on this computer or set AGRIPOS_PG_BIN.',
-      },
-    };
-  backingUp = true;
-  const state = backupState();
-  try {
-    const file = await createLocalBackup({
-      databaseUrl: saved.databaseUrl,
-      directory: join(app.getPath('userData'), 'backups'),
-      tools,
-    });
-    state.lastLocalAt = new Date().toISOString();
-    if (saved.backupUrl) {
-      const local = postgres(saved.databaseUrl),
-        cloud = postgres(saved.backupUrl);
-      try {
-        await checkBackupTarget(local, cloud);
-      } finally {
-        await Promise.all([local.close(), cloud.close()]);
-      }
-      await copyToCloud({ cloudUrl: saved.backupUrl, file, tools });
-      state.lastCloudAt = new Date().toISOString();
-    }
-    state.lastError = null;
-    logEvent('backup.success', { cloud: !!saved.backupUrl });
-  } catch (error) {
-    state.lastError = error instanceof Error ? error.message : 'Backup failed';
-    logEvent('backup.failure', { error: error instanceof Error ? error.name : 'Unknown' });
-  } finally {
-    backingUp = false;
-    writeFileSync(backupStatePath(), JSON.stringify(state));
-  }
-  return state.lastError
-    ? { error: { code: 'BACKUP_FAILED', message: state.lastError } }
-    : { data: backupStatus() };
+  const result = await syncNow();
+  return result.error ? { error: result.error } : { data: backupStatus() };
 }
 export function terminalId() {
   const path = join(app.getPath('userData'), 'terminal-id');

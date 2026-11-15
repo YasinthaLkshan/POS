@@ -18,15 +18,7 @@ export const connectionSchema = z
     shopName: z.string().trim().min(1).max(120).optional(),
     existingStaffId: z.uuid().optional(),
   })
-  .strict()
-  .refine((c) => !c.backupUrl || c.role === 'main', {
-    message: 'Only the main shop computer copies backups to the cloud',
-    path: ['backupUrl'],
-  })
-  .refine((c) => c.backupUrl !== c.databaseUrl, {
-    message: 'The cloud backup must be a different database from the shop database',
-    path: ['backupUrl'],
-  });
+  .strict();
 export type ConnectionConfig = z.input<typeof connectionSchema>;
 export interface BackupStatus {
   role: ComputerRole | null;
@@ -67,6 +59,7 @@ export interface DesktopBridge {
     to: string;
   }): Promise<{ cancelled: boolean }>;
   offlineStatus(): Promise<{
+    workOffline: boolean;
     authorized: boolean;
     unlocked: boolean;
     expiresAt: string | null;
@@ -75,6 +68,7 @@ export interface DesktopBridge {
     counts: Record<string, number>;
     operations: { id: string; state: string; message: string; attempts: number }[];
   }>;
+  setWorkOffline(enabled: boolean): Promise<unknown>;
   prepareOffline(pin: string): Promise<ApiResult>;
   unlockOffline(pin: string): Promise<ApiResult>;
   syncNow(): Promise<ApiResult>;

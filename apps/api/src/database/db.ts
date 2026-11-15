@@ -13,8 +13,8 @@ export interface Database extends Connection {
   transaction<T>(fn: (tx: Connection) => Promise<T>): Promise<T>;
   close(): Promise<void>;
 }
-export function postgres(url: string): Database {
-  const pool = new pg.Pool({ connectionString: url, max: 10, connectionTimeoutMillis: 10000 });
+export function postgres(url: string, connectionTimeoutMillis = 10000): Database {
+  const pool = new pg.Pool({ connectionString: url, max: 10, connectionTimeoutMillis });
   return {
     query: async <T extends Row>(sql: string, params?: unknown[]) =>
       (await pool.query<T>(sql, params)).rows,

@@ -24,18 +24,18 @@
   color-scheme: light;
 }
 :root[data-theme='dark'] {
-  --bg: #0a1410;
-  --surface: #12201a;
+  --bg: #080808;
+  --surface: #141414;
   --text: #e3ede7;
-  --muted: #9db0a5;
-  --border: #253a30;
+  --muted: #a8ada9;
+  --border: #303030;
   --primary: #5db68f;
   --brand: #146446;
   --brand-hover: #1a7652;
-  --soft: #183326;
-  --sidebar: #061009;
-  --sidebar-hover: #102a21;
-  --sidebar-active: #163a2d;
+  --soft: #202020;
+  --sidebar: #050505;
+  --sidebar-hover: #1b1b1b;
+  --sidebar-active: #252525;
   --focus: #5db68f;
   --danger: #ff9b98;
   --danger-bg: #3b2323;
@@ -1803,6 +1803,55 @@ th.cell-end .table-sort {
   display: flex;
   justify-content: space-between;
   margin-top: 20px;
+}
+.form-grid label[hidden] {
+  display: none;
+}
+.product-more {
+  margin-top: 18px;
+  padding: 8px 0;
+}
+.dilshan-logo {
+  background: white;
+  overflow: hidden;
+  border-radius: 12px;
+}
+.dilshan-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.login-brand .dilshan-logo {
+  width: 84px;
+  height: 84px;
+  flex: 0 0 84px;
+}
+:root[data-theme='dark'] .login-brand {
+  background: #050505;
+}
+.offline-mode {
+  margin: 18px 0;
+}
+.offline-mode > label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+  width: fit-content;
+  cursor: pointer;
+}
+.offline-mode input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--primary);
+}
+.offline-mode > p {
+  margin: 6px 0 0 25px;
+  font-size: 12px;
+  line-height: 1.6;
 }
 .login-links button {
   font-size: 11px;

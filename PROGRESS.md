@@ -1,5 +1,31 @@
 # AgriPOS implementation progress
 
+## Release 0.7.5 - keep local work responsive during cloud sync
+
+Cloud requests no longer hold the SQLite operation queue. Local work continues while Neon is slow or unreachable; changes made during an upload remain pending for the next automatic 30-second retry. A cloud download cannot overwrite local changes made during that request. Sync errors now distinguish connection problems, rejected credentials and database error codes without exposing credentials. The Cloud synchronization screen explains automatic offline saving and retry behavior.
+
+Verified: TypeScript, ESLint, and synchronization tests covering offline edits, reconnection, local writes during a delayed cloud request, later upload and simultaneous cloud/local change protection.
+
+## Release 0.7.4 - simpler product entry and Dilshan Agro branding
+
+Black is the default theme, including a one-time update of existing theme preferences. Add product initially shows name, category, sale unit, purchase price and selling price. Product codes are generated automatically; optional details remain available in an expandable section. Unit precision defaults from the sale unit. The supplied original Dilshan Agro logo appears on login and as the default sidebar and receipt logo. Existing custom shop logos retain priority.
+
+Verified: TypeScript, ESLint and the Electron product/inventory/sales/offline workflow, including generated product codes and editing optional fields. The offline checkbox retains its aligned layout.
+
+## Release 0.7.2 — explicit offline control
+
+Login and Cloud sync now expose Work offline. This persists in SQLite, pauses cloud requests, and shows Offline · saved locally in the header. Normal authentication and role permissions remain in use. Turning the switch off resumes synchronization. Initialization still needs one online download. TypeScript, lint, and targeted cloud-sync tests passed, including offline request suppression and persistence across database close/reopen.
+
+## Release 0.7.0 — SQLite and Neon synchronization
+
+The desktop now runs all business services on local SQLite and synchronizes one Neon database. Normal username/password authentication and role checks work offline. Setup has one cloud URL, no local PostgreSQL installation, no separate backup database and no offline PIN. Images are included in synchronization.
+
+Verified: TypeScript and lint, 87 tests with SQLite, the PostgreSQL regression suite, both Electron workflows, and targeted synchronization checks for restart recovery, lost acknowledgement, images, changed passwords/roles and conflicting computer edits. Live Neon provisioning was blocked by credential-handling approval review; the supplied URL has not been saved or verified. Enter it through Connect your shop.
+
+This release supports one active POS workflow. Synchronize before switching computers. Concurrent edits pause cloud synchronization and preserve both copies for reconciliation. See SETUP.md and OFFLINE_SYNC.md for current instructions.
+
+## Historical 0.6 architecture and verification
+
 Updated 2026-11-14.
 
 ## Current architecture

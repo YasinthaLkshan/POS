@@ -1,0 +1,3671 @@
+[
+  {
+    "name": "audit_logs",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "actor_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "action",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "entity_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "detail",
+        "type": "jsonb",
+        "nullable": false,
+        "default": "'{}'::jsonb"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (actor_id) REFERENCES staff(id)"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "auth_sessions",
+    "columns": [
+      {
+        "name": "token_hash",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "expires_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (token_hash)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE CASCADE"
+      }
+    ],
+    "indexes": [
+      {
+        "sql": "CREATE INDEX auth_sessions_staff_idx ON public.auth_sessions USING btree (staff_id)"
+      }
+    ]
+  },
+  {
+    "name": "batches",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "product_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "batch_number",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "expiry_date",
+        "type": "date",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "quantity",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "unit_cost",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      },
+      {
+        "name": "purchase_id",
+        "type": "uuid",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "supplier_id",
+        "type": "uuid",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "received_quantity",
+        "type": "int8",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "manufacture_date",
+        "type": "date",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "supplier_lot",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((quantity >= 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((received_quantity > 0))"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, product_id) REFERENCES products(shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, purchase_id) REFERENCES purchases(shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, supplier_id) REFERENCES suppliers(shop_id, id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((unit_cost >= 0))"
+      }
+    ],
+    "indexes": [
+      {
+        "sql": "CREATE INDEX batches_fefo ON public.batches USING btree (shop_id, product_id, expiry_date, created_at)"
+      }
+    ]
+  },
+  {
+    "name": "cash_movements",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "session_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "amount",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "type",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "reference_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "reason",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "actor_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (actor_id) REFERENCES staff(id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((amount <> 0))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (session_id, reference_id, type)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, session_id) REFERENCES cash_sessions(shop_id, id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((type = ANY (ARRAY['sale'::text, 'refund'::text, 'repayment'::text, 'expense'::text, 'supplier_payment'::text, 'cash_in'::text, 'cash_out'::text])))"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "cash_sessions",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "terminal_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "opened_by",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "opening_float",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "opened_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      },
+      {
+        "name": "closed_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "closed_by",
+        "type": "uuid",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "expected_close",
+        "type": "int8",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "actual_close",
+        "type": "int8",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "difference",
+        "type": "int8",
+        "nullable": true,
+        "default": null
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "c",
+        "sql": "CHECK ((actual_close >= 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((((closed_at IS NULL) AND (actual_close IS NULL)) OR ((closed_at IS NOT NULL) AND (actual_close IS NOT NULL) AND (difference = (actual_close - expected_close)))))"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (closed_by) REFERENCES staff(id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (opened_by) REFERENCES staff(id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((opening_float >= 0))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (shop_id, id)"
+      }
+    ],
+    "indexes": [
+      {
+        "sql": "CREATE UNIQUE INDEX one_open_register ON public.cash_sessions USING btree (shop_id, terminal_id) WHERE (closed_at IS NULL)"
+      }
+    ]
+  },
+  {
+    "name": "categories",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "kind",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "c",
+        "sql": "CHECK ((kind = ANY (ARRAY['fertilizer'::text, 'seed'::text, 'plant'::text, 'equipment'::text, 'other'::text])))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (shop_id, id)"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (shop_id, name)"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "credit_installments",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "sale_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "seq",
+        "type": "int4",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "due_date",
+        "type": "date",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "amount",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "c",
+        "sql": "CHECK ((amount > 0))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (sale_id, seq)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK (((seq >= 1) AND (seq <= 24)))"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, sale_id) REFERENCES sales(shop_id, id)"
+      }
+    ],
+    "indexes": [
+      {
+        "sql": "CREATE INDEX installments_due ON public.credit_installments USING btree (shop_id, due_date)"
+      }
+    ]
+  },
+  {
+    "name": "customer_ledger",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "customer_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "sale_id",
+        "type": "uuid",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "amount",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "type",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "reference",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "actor_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      },
+      {
+        "name": "method",
+        "type": "text",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "notes",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (actor_id) REFERENCES staff(id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((amount <> 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((method = ANY (ARRAY['cash'::text, 'card'::text, 'transfer'::text])))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, customer_id) REFERENCES customers(shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, sale_id) REFERENCES sales(shop_id, id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((type = ANY (ARRAY['credit_sale'::text, 'repayment'::text, 'return'::text])))"
+      }
+    ],
+    "indexes": [
+      {
+        "sql": "CREATE INDEX ledger_customer ON public.customer_ledger USING btree (shop_id, customer_id)"
+      },
+      {
+        "sql": "CREATE INDEX ledger_shop_type_date ON public.customer_ledger USING btree (shop_id, type, created_at)"
+      }
+    ]
+  },
+  {
+    "name": "customers",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "phone",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "email",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "address",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "credit_limit",
+        "type": "int8",
+        "nullable": true,
+        "default": "0"
+      },
+      {
+        "name": "active",
+        "type": "bool",
+        "nullable": false,
+        "default": "true"
+      },
+      {
+        "name": "credit_enabled",
+        "type": "bool",
+        "nullable": false,
+        "default": "true"
+      },
+      {
+        "name": "kind",
+        "type": "text",
+        "nullable": false,
+        "default": "'registered'::text"
+      },
+      {
+        "name": "factory_id",
+        "type": "uuid",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "driver_code",
+        "type": "text",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "lorry_number",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "notes",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "registered_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "c",
+        "sql": "CHECK ((credit_limit >= 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK (((kind <> 'driver'::text) OR ((factory_id IS NOT NULL) AND (driver_code IS NOT NULL))))"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, factory_id) REFERENCES factories(shop_id, id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((kind = ANY (ARRAY['registered'::text, 'driver'::text, 'walk_in'::text])))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (shop_id, id)"
+      }
+    ],
+    "indexes": [
+      {
+        "sql": "CREATE UNIQUE INDEX customers_driver_code ON public.customers USING btree (shop_id, driver_code) WHERE (driver_code IS NOT NULL)"
+      },
+      {
+        "sql": "CREATE INDEX customers_kind_name ON public.customers USING btree (shop_id, kind, name)"
+      },
+      {
+        "sql": "CREATE INDEX customers_factory ON public.customers USING btree (shop_id, factory_id) WHERE (factory_id IS NOT NULL)"
+      }
+    ]
+  },
+  {
+    "name": "driver_discounts",
+    "columns": [
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "product_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "amount",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "updated_by",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "c",
+        "sql": "CHECK ((amount >= 0))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (shop_id, product_id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, product_id) REFERENCES products(shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (updated_by) REFERENCES staff(id)"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "expenses",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "category",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "amount",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "date",
+        "type": "date",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "actor_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      },
+      {
+        "name": "paid_from",
+        "type": "text",
+        "nullable": false,
+        "default": "'bank'::text"
+      },
+      {
+        "name": "terminal_id",
+        "type": "uuid",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "voided_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "void_reason",
+        "type": "text",
+        "nullable": true,
+        "default": null
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (actor_id) REFERENCES staff(id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((amount > 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((paid_from = ANY (ARRAY['cash'::text, 'bank'::text])))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "factories",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "address",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "phone",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "notes",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "active",
+        "type": "bool",
+        "nullable": false,
+        "default": "true"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "c",
+        "sql": "CHECK (((length(TRIM(BOTH FROM name)) >= 1) AND (length(TRIM(BOTH FROM name)) <= 200)))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (shop_id, id)"
+      }
+    ],
+    "indexes": [
+      {
+        "sql": "CREATE UNIQUE INDEX factories_name ON public.factories USING btree (shop_id, lower(TRIM(BOTH FROM name)))"
+      }
+    ]
+  },
+  {
+    "name": "image_objects",
+    "columns": [
+      {
+        "name": "path",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "bytes",
+        "type": "bytea",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "c",
+        "sql": "CHECK (((octet_length(bytes) >= 33) AND (octet_length(bytes) <= 131072)))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((path ~~ ((shop_id)::text || '/%'::text)))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (path)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      }
+    ],
+    "indexes": [
+      {
+        "sql": "CREATE INDEX image_objects_shop_idx ON public.image_objects USING btree (shop_id)"
+      }
+    ]
+  },
+  {
+    "name": "installment_allocations",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "ledger_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "installment_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "amount",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "c",
+        "sql": "CHECK ((amount > 0))"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (ledger_id) REFERENCES customer_ledger(id)"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (ledger_id, installment_id)"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, installment_id) REFERENCES credit_installments(shop_id, id)"
+      }
+    ],
+    "indexes": [
+      {
+        "sql": "CREATE INDEX installment_allocations_installment ON public.installment_allocations USING btree (installment_id)"
+      }
+    ]
+  },
+  {
+    "name": "installment_reductions",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "return_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "installment_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "amount",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "c",
+        "sql": "CHECK ((amount > 0))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (return_id, installment_id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, installment_id) REFERENCES credit_installments(shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, return_id) REFERENCES returns(shop_id, id)"
+      }
+    ],
+    "indexes": [
+      {
+        "sql": "CREATE INDEX installment_reductions_installment ON public.installment_reductions USING btree (installment_id)"
+      }
+    ]
+  },
+  {
+    "name": "inventory_movements",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "batch_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "delta",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "type",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "reason",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "reference_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "actor_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (actor_id) REFERENCES staff(id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((delta <> 0))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, batch_id) REFERENCES batches(shop_id, id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((type = ANY (ARRAY['purchase_receipt'::text, 'sale'::text, 'sale_return'::text, 'supplier_return'::text, 'adjustment'::text, 'damage'::text, 'write_off'::text, 'stock_receipt'::text, 'conversion_in'::text, 'conversion_out'::text])))"
+      }
+    ],
+    "indexes": [
+      {
+        "sql": "CREATE INDEX movements_shop_date ON public.inventory_movements USING btree (shop_id, created_at)"
+      }
+    ]
+  },
+  {
+    "name": "notifications",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "title",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "body",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "severity",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "read_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      },
+      {
+        "name": "source_key",
+        "type": "text",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "action_path",
+        "type": "text",
+        "nullable": false,
+        "default": "'/'::text"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((severity = ANY (ARRAY['info'::text, 'warning'::text, 'danger'::text, 'success'::text])))"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (staff_id) REFERENCES staff(id)"
+      }
+    ],
+    "indexes": [
+      {
+        "sql": "CREATE UNIQUE INDEX notification_source ON public.notifications USING btree (staff_id, source_key)"
+      }
+    ]
+  },
+  {
+    "name": "offline_grants",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "terminal_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "token_hash",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "snapshot",
+        "type": "jsonb",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "expires_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, terminal_id) REFERENCES terminals(shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (staff_id) REFERENCES staff(id)"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "operations",
+    "columns": [
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "kind",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "payload_hash",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "result",
+        "type": "jsonb",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "parked_sales",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "label",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "cart",
+        "type": "jsonb",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "created_by",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "claimed_by",
+        "type": "uuid",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "status",
+        "type": "text",
+        "nullable": false,
+        "default": "'parked'::text"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (claimed_by) REFERENCES staff(id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (created_by) REFERENCES staff(id)"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((status = ANY (ARRAY['parked'::text, 'resumed'::text, 'completed'::text, 'cancelled'::text])))"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "payments",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "sale_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "method",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "amount",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "reference",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "c",
+        "sql": "CHECK ((amount > 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK (((method = 'cash'::text) OR (length(TRIM(BOTH FROM reference)) > 0)))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((method = ANY (ARRAY['cash'::text, 'card'::text, 'transfer'::text])))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, sale_id) REFERENCES sales(shop_id, id)"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "product_families",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "category_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "brand",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "c",
+        "sql": "CHECK (((length(TRIM(BOTH FROM name)) >= 1) AND (length(TRIM(BOTH FROM name)) <= 200)))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, category_id) REFERENCES categories(shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (shop_id, id)"
+      }
+    ],
+    "indexes": [
+      {
+        "sql": "CREATE UNIQUE INDEX product_families_name ON public.product_families USING btree (shop_id, lower(TRIM(BOTH FROM name)))"
+      }
+    ]
+  },
+  {
+    "name": "products",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "sku",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "barcode",
+        "type": "text",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "category_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "supplier_id",
+        "type": "uuid",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "brand",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "unit",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "selling_price",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "purchase_price",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "tax_bps",
+        "type": "int4",
+        "nullable": false,
+        "default": "0"
+      },
+      {
+        "name": "minimum_stock",
+        "type": "int8",
+        "nullable": false,
+        "default": "0"
+      },
+      {
+        "name": "active",
+        "type": "bool",
+        "nullable": false,
+        "default": "true"
+      },
+      {
+        "name": "attributes",
+        "type": "jsonb",
+        "nullable": false,
+        "default": "'{}'::jsonb"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      },
+      {
+        "name": "purchase_unit",
+        "type": "text",
+        "nullable": false,
+        "default": "'piece'::text"
+      },
+      {
+        "name": "purchase_factor",
+        "type": "int8",
+        "nullable": false,
+        "default": "1000"
+      },
+      {
+        "name": "reorder_quantity",
+        "type": "int8",
+        "nullable": false,
+        "default": "0"
+      },
+      {
+        "name": "subcategory",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "image_path",
+        "type": "text",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "family_id",
+        "type": "uuid",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "variant_label",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "whole_units",
+        "type": "bool",
+        "nullable": false,
+        "default": "false"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, family_id) REFERENCES product_families(shop_id, id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((minimum_stock >= 0))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((purchase_factor > 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((purchase_price >= 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((reorder_quantity >= 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((selling_price >= 0))"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (shop_id, barcode)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, category_id) REFERENCES categories(shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (shop_id, id)"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (shop_id, sku)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, supplier_id) REFERENCES suppliers(shop_id, id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK (((tax_bps >= 0) AND (tax_bps <= 10000)))"
+      }
+    ],
+    "indexes": [
+      {
+        "sql": "CREATE UNIQUE INDEX products_family_variant ON public.products USING btree (family_id, lower(variant_label)) WHERE (family_id IS NOT NULL)"
+      }
+    ]
+  },
+  {
+    "name": "purchase_lines",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "purchase_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "product_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "quantity",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "received",
+        "type": "int8",
+        "nullable": false,
+        "default": "0"
+      },
+      {
+        "name": "unit_cost",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "c",
+        "sql": "CHECK (((received >= 0) AND (received <= quantity)))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (purchase_id, product_id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((quantity > 0))"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, product_id) REFERENCES products(shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, purchase_id) REFERENCES purchases(shop_id, id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((unit_cost >= 0))"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "purchases",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "supplier_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "status",
+        "type": "text",
+        "nullable": false,
+        "default": "'ordered'::text"
+      },
+      {
+        "name": "created_by",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      },
+      {
+        "name": "invoice_number",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "due_date",
+        "type": "date",
+        "nullable": true,
+        "default": null
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (created_by) REFERENCES staff(id)"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, supplier_id) REFERENCES suppliers(shop_id, id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((status = ANY (ARRAY['draft'::text, 'submitted'::text, 'approved'::text, 'ordered'::text, 'sent'::text, 'partial'::text, 'received'::text, 'cancelled'::text])))"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "repayment_allocations",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "ledger_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "sale_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "amount",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "c",
+        "sql": "CHECK ((amount > 0))"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (ledger_id) REFERENCES customer_ledger(id)"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (ledger_id, sale_id)"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, sale_id) REFERENCES sales(shop_id, id)"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "return_allocations",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "return_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "batch_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "quantity",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((quantity > 0))"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, batch_id) REFERENCES batches(shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, return_id) REFERENCES returns(shop_id, id)"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "return_lines",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "return_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "sale_line_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "quantity",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "total",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "tax",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "cost",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "c",
+        "sql": "CHECK ((cost >= 0))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((quantity > 0))"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (return_id, sale_line_id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, return_id) REFERENCES returns(shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, sale_line_id) REFERENCES sale_lines(shop_id, id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((tax >= 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((total >= 0))"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "returns",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "sale_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "reason",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "restock",
+        "type": "bool",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "refund_amount",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "actor_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      },
+      {
+        "name": "credit_amount",
+        "type": "int8",
+        "nullable": false,
+        "default": "0"
+      },
+      {
+        "name": "total_amount",
+        "type": "int8",
+        "nullable": false,
+        "default": "0"
+      },
+      {
+        "name": "tax",
+        "type": "int8",
+        "nullable": false,
+        "default": "0"
+      },
+      {
+        "name": "cost",
+        "type": "int8",
+        "nullable": false,
+        "default": "0"
+      },
+      {
+        "name": "refund_method",
+        "type": "text",
+        "nullable": false,
+        "default": "'cash'::text"
+      },
+      {
+        "name": "reference",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (actor_id) REFERENCES staff(id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((total_amount = (refund_amount + credit_amount)))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((cost >= 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((credit_amount >= 0))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((refund_amount >= 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((refund_method = ANY (ARRAY['cash'::text, 'card'::text, 'transfer'::text])))"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, sale_id) REFERENCES sales(shop_id, id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((tax >= 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((total_amount >= 0))"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "sale_allocations",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "sale_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "batch_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "quantity",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "cost",
+        "type": "int8",
+        "nullable": false,
+        "default": "0"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "c",
+        "sql": "CHECK ((cost >= 0))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((quantity > 0))"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, batch_id) REFERENCES batches(shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, sale_id) REFERENCES sales(shop_id, id)"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "sale_lines",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "sale_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "product_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "quantity",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "unit_price",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "discount",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "tax",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "total",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "cost",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "auto_discount",
+        "type": "int8",
+        "nullable": false,
+        "default": "0"
+      },
+      {
+        "name": "unit",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "c",
+        "sql": "CHECK ((auto_discount <= discount))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((auto_discount >= 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((cost >= 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((discount >= 0))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((quantity > 0))"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, product_id) REFERENCES products(shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, sale_id) REFERENCES sales(shop_id, id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((tax >= 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((total >= 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((unit_price >= 0))"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "sales",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "terminal_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "customer_id",
+        "type": "uuid",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "cashier_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "subtotal",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "discount",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "tax",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "total",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "cost",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "credit",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "cash_tendered",
+        "type": "int8",
+        "nullable": false,
+        "default": "0"
+      },
+      {
+        "name": "change",
+        "type": "int8",
+        "nullable": false,
+        "default": "0"
+      },
+      {
+        "name": "due_date",
+        "type": "date",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "status",
+        "type": "text",
+        "nullable": false,
+        "default": "'completed'::text"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      },
+      {
+        "name": "invoice_number",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "bill_discount",
+        "type": "int8",
+        "nullable": false,
+        "default": "0"
+      },
+      {
+        "name": "customer_name",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "notes",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "c",
+        "sql": "CHECK ((bill_discount <= discount))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((bill_discount >= 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((cash_tendered >= 0))"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (cashier_id) REFERENCES staff(id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((change >= 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK (((discount >= 0) AND (discount <= subtotal)))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((total = ((subtotal - discount) + tax)))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK (((credit >= 0) AND (credit <= total)))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK (((credit = 0) OR ((customer_id IS NOT NULL) AND (due_date IS NOT NULL))))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((cost >= 0))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, customer_id) REFERENCES customers(shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (shop_id, id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((status = ANY (ARRAY['completed'::text, 'returned'::text])))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((subtotal >= 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((tax >= 0))"
+      }
+    ],
+    "indexes": [
+      {
+        "sql": "CREATE INDEX sales_shop_date ON public.sales USING btree (shop_id, created_at)"
+      },
+      {
+        "sql": "CREATE UNIQUE INDEX sale_invoice_number ON public.sales USING btree (shop_id, invoice_number)"
+      },
+      {
+        "sql": "CREATE INDEX sales_customer ON public.sales USING btree (shop_id, customer_id, created_at) WHERE (customer_id IS NOT NULL)"
+      }
+    ]
+  },
+  {
+    "name": "shops",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "address",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "phone",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "receipt_footer",
+        "type": "text",
+        "nullable": false,
+        "default": "'Thank you for growing with us.'::text"
+      },
+      {
+        "name": "expiry_alert_days",
+        "type": "int4",
+        "nullable": false,
+        "default": "30"
+      },
+      {
+        "name": "require_cash_session",
+        "type": "bool",
+        "nullable": false,
+        "default": "false"
+      },
+      {
+        "name": "email",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "registration_number",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "tax_number",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "default_tax_bps",
+        "type": "int4",
+        "nullable": false,
+        "default": "0"
+      },
+      {
+        "name": "invoice_prefix",
+        "type": "text",
+        "nullable": false,
+        "default": "'AGR'::text"
+      },
+      {
+        "name": "logo_path",
+        "type": "text",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "driver_installments",
+        "type": "int4",
+        "nullable": false,
+        "default": "2"
+      },
+      {
+        "name": "driver_credit_months",
+        "type": "int4",
+        "nullable": false,
+        "default": "2"
+      },
+      {
+        "name": "normal_credit_months",
+        "type": "int4",
+        "nullable": false,
+        "default": "1"
+      },
+      {
+        "name": "due_soon_days",
+        "type": "int4",
+        "nullable": false,
+        "default": "7"
+      },
+      {
+        "name": "next_invoice_number",
+        "type": "int8",
+        "nullable": false,
+        "default": "1"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "c",
+        "sql": "CHECK (((default_tax_bps >= 0) AND (default_tax_bps <= 10000)))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK (((driver_credit_months >= 1) AND (driver_credit_months <= 24)))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK (((driver_installments >= 1) AND (driver_installments <= 12)))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((driver_credit_months >= driver_installments))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK (((due_soon_days >= 0) AND (due_soon_days <= 60)))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK (((expiry_alert_days >= 1) AND (expiry_alert_days <= 365)))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((next_invoice_number > 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK (((normal_credit_months >= 1) AND (normal_credit_months <= 12)))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "staff",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "role",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "active",
+        "type": "bool",
+        "nullable": false,
+        "default": "true"
+      },
+      {
+        "name": "firebase_uid",
+        "type": "text",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "username",
+        "type": "text",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "password_hash",
+        "type": "text",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "login_failures",
+        "type": "int4",
+        "nullable": false,
+        "default": "0"
+      },
+      {
+        "name": "locked_until",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": null
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "u",
+        "sql": "UNIQUE (firebase_uid)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK (((firebase_uid IS NULL) OR ((length(firebase_uid) >= 1) AND (length(firebase_uid) <= 128))))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((role = ANY (ARRAY['administrator'::text, 'manager'::text, 'cashier'::text, 'inventory'::text])))"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK (((username IS NULL) OR (username ~ '^[a-z][a-z0-9._-]{2,39}$'::text)))"
+      }
+    ],
+    "indexes": [
+      {
+        "sql": "CREATE UNIQUE INDEX staff_username_unique ON public.staff USING btree (lower(username)) WHERE (username IS NOT NULL)"
+      }
+    ]
+  },
+  {
+    "name": "stock_conversions",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "from_product_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "to_product_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "quantity",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "resulting_quantity",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "cost",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "reason",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "actor_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (actor_id) REFERENCES staff(id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((from_product_id <> to_product_id))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((cost >= 0))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((quantity > 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((resulting_quantity > 0))"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, from_product_id) REFERENCES products(shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, to_product_id) REFERENCES products(shop_id, id)"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "stocktakes",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "reason",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "actor_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (actor_id) REFERENCES staff(id)"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "supplier_ledger",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "supplier_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "purchase_id",
+        "type": "uuid",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "amount",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "type",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "reference_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "method",
+        "type": "text",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "reference",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "actor_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (actor_id) REFERENCES staff(id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((amount <> 0))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, purchase_id) REFERENCES purchases(shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, supplier_id) REFERENCES suppliers(shop_id, id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((type = ANY (ARRAY['receipt'::text, 'payment'::text, 'return'::text])))"
+      }
+    ],
+    "indexes": [
+      {
+        "sql": "CREATE INDEX supplier_ledger_balance ON public.supplier_ledger USING btree (shop_id, supplier_id)"
+      }
+    ]
+  },
+  {
+    "name": "supplier_returns",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "batch_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "supplier_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "quantity",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "credit_amount",
+        "type": "int8",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "reason",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "actor_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (actor_id) REFERENCES staff(id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((credit_amount >= 0))"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((quantity > 0))"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, batch_id) REFERENCES batches(shop_id, id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id, supplier_id) REFERENCES suppliers(shop_id, id)"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "suppliers",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()"
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "phone",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "email",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "address",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "active",
+        "type": "bool",
+        "nullable": false,
+        "default": "true"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (shop_id, id)"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "sync_operations",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "grant_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "payload",
+        "type": "jsonb",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "payload_hash",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "state",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "message",
+        "type": "text",
+        "nullable": false,
+        "default": "''::text"
+      },
+      {
+        "name": "receipt",
+        "type": "jsonb",
+        "nullable": true,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (grant_id) REFERENCES offline_grants(id)"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (staff_id) REFERENCES staff(id)"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((state = ANY (ARRAY['pending'::text, 'synced'::text, 'conflict'::text])))"
+      }
+    ],
+    "indexes": [
+      {
+        "sql": "CREATE INDEX sync_shop_state ON public.sync_operations USING btree (shop_id, state)"
+      }
+    ]
+  },
+  {
+    "name": "terminals",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "shop_id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "offline_enabled",
+        "type": "bool",
+        "nullable": false,
+        "default": "false"
+      },
+      {
+        "name": "authorized_by",
+        "type": "uuid",
+        "nullable": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (authorized_by) REFERENCES staff(id)"
+      },
+      {
+        "kind": "p",
+        "sql": "PRIMARY KEY (id)"
+      },
+      {
+        "kind": "f",
+        "sql": "FOREIGN KEY (shop_id) REFERENCES shops(id)"
+      },
+      {
+        "kind": "u",
+        "sql": "UNIQUE (shop_id, id)"
+      }
+    ],
+    "indexes": []
+  }
+]

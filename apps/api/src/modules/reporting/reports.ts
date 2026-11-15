@@ -187,10 +187,9 @@ const definitions: Record<Exclude<ReportKind, 'business-summary'>, Definition> =
       col('other_discount', 'Other line discounts', 'money'),
       col('discount', 'Total discount', 'money'),
     ],
-    sql: `SELECT * FROM (SELECT s.invoice_number,s.created_at,COALESCE(NULLIF(s.customer_name,''),'Walk-in') customer,
+    sql: `SELECT t.*,(t.discount-t.bill_discount-t.driver_discount)::bigint other_discount FROM (SELECT s.invoice_number,s.created_at,COALESCE(NULLIF(s.customer_name,''),'Walk-in') customer,
       COALESCE((SELECT SUM(l.auto_discount) FROM sale_lines l WHERE l.sale_id=s.id),0)::bigint driver_discount,s.bill_discount,s.discount
-     FROM sales s WHERE s.shop_id=$1 AND s.discount>0 AND ${period.replace('created_at', 's.created_at')}) t,
-     LATERAL (SELECT (t.discount-t.bill_discount-t.driver_discount)::bigint other_discount) o ORDER BY created_at DESC`,
+     FROM sales s WHERE s.shop_id=$1 AND s.discount>0 AND ${period.replace('created_at', 's.created_at')}) t ORDER BY created_at DESC`,
   },
   stock: {
     title: 'Current stock availability',

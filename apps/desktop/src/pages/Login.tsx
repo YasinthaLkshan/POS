@@ -2,19 +2,20 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Sprout, ShieldCheck, ArrowRight } from 'lucide-react';
+import { ShieldCheck, ArrowRight } from 'lucide-react';
+import brandLogo from '../assets/dilshan-agro.jpeg';
 import { useSession } from '../stores/session';
 import { api } from '../services/api';
 import { FormDialog } from '../components/FormDialog';
 import { toast } from 'sonner';
+import { OfflineMode } from '../components/OfflineMode';
 const schema = z.object({
   username: z.string().min(3, 'Enter your username'),
   password: z.string().min(1, 'Enter your password'),
 });
 export function Login() {
   const [error, setError] = useState(''),
-    [setup, setSetup] = useState(false),
-    [offline, setOffline] = useState(false);
+    [setup, setSetup] = useState(false);
   const {
     register,
     handleSubmit,
@@ -25,11 +26,11 @@ export function Login() {
     <div className="login">
       <aside className="login-brand">
         <div className="brand">
-          <span className="brand-mark">
-            <Sprout />
+          <span className="brand-mark dilshan-logo">
+            <img src={brandLogo} alt="Dilshan Agro" />
           </span>
           <span>
-            Agri<span className="brand-light">POS</span>
+            Dilshan <span className="brand-light">Agro</span>
           </span>
         </div>
         <div>
@@ -89,10 +90,8 @@ export function Login() {
               <ArrowRight size={18} />
             </button>
           </form>
+          <OfflineMode />
           <div className="login-links">
-            <button className="text-btn" onClick={() => setOffline(true)}>
-              Unlock offline
-            </button>
             <button className="text-btn" onClick={() => setSetup(true)}>
               Connect your shop
             </button>
@@ -106,30 +105,14 @@ export function Login() {
       {setup && (
         <FormDialog
           title="Connect your shop"
-          description="The main shop computer keeps the shop database, so every till keeps working when the internet is down. Other tills connect to it over the shop network. For a new database, set an initial admin password; AgriPOS creates the tables automatically."
+          description="Enter your Neon cloud connection once. AgriPOS saves your shop on this computer automatically, so the same username, password and features work without internet. For a new shop only, choose an initial administrator password."
           fields={[
             {
-              name: 'role',
-              label: 'This computer is',
-              type: 'select',
-              required: true,
-              options: [
-                { value: 'main', label: 'The main shop computer' },
-                { value: 'till', label: 'A till (uses the main computer)' },
-              ],
-            },
-            {
               name: 'databaseUrl',
-              label: 'Shop database URL',
+              label: 'Neon cloud database URL',
               type: 'password',
               required: true,
-              hint: 'Main computer: postgresql://agripos:PASSWORD@localhost:5432/agripos · Till: replace localhost with the main computer’s name or IP address.',
-            },
-            {
-              name: 'backupUrl',
-              label: 'Cloud backup URL (Neon, main computer only)',
-              type: 'password',
-              hint: 'Use an empty Neon database. It is replaced with a copy of the shop database every 30 minutes when online.',
+              hint: 'Your cloud URL is protected by Windows secure storage. No local database setup is needed.',
             },
             {
               name: 'adminPassword',
@@ -139,34 +122,15 @@ export function Login() {
             { name: 'shopName', label: 'Shop name (new database)' },
             { name: 'existingStaffId', label: 'Existing administrator staff ID (existing shop)' },
           ]}
-          initial={{ role: 'main' }}
           onClose={() => setSetup(false)}
           onSave={async (values) => {
-            if (values.backupUrl && values.role !== 'main')
-              throw new Error('Only the main shop computer copies backups to the cloud');
             await window.desktop.configure({
               databaseUrl: values.databaseUrl!,
-              role: values.role as 'main' | 'till',
-              ...(values.backupUrl ? { backupUrl: values.backupUrl } : {}),
               ...(values.adminPassword ? { adminPassword: values.adminPassword } : {}),
               ...(values.shopName ? { shopName: values.shopName } : {}),
               ...(values.existingStaffId ? { existingStaffId: values.existingStaffId } : {}),
             });
             toast.success('Shop connection saved');
-          }}
-        />
-      )}
-      {offline && (
-        <FormDialog
-          title="Unlock offline checkout"
-          description="Use the 8–12 digit PIN prepared during an online session. Authorization lasts 12 hours. Only cached products, cash sales and local receipts are available."
-          fields={[{ name: 'pin', label: 'Offline PIN', type: 'password', required: true }]}
-          onClose={() => setOffline(false)}
-          onSave={async (v) => {
-            const result = await window.desktop.unlockOffline(v.pin!);
-            if (result.error) throw new Error(result.error.message);
-            setUser(await api('/auth/me'));
-            location.hash = '/pos';
           }}
         />
       )}

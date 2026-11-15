@@ -53,7 +53,11 @@ export function Products() {
   };
   const fields: Field[] = [
     { name: 'name', label: 'Product name', required: true },
-    { name: 'sku', label: 'SKU', required: true },
+    {
+      name: 'sku',
+      label: 'Product code',
+      hint: 'Created automatically. Change it only if you use your own codes.',
+    },
     { name: 'barcode', label: 'Barcode' },
     {
       name: 'categoryId',
@@ -70,7 +74,7 @@ export function Products() {
     },
     {
       name: 'unit',
-      label: 'Base sale unit',
+      label: 'Sold by',
       type: 'select',
       required: true,
       options: ['piece', 'packet', 'bag', 'kg', 'g', 'liter', 'ml', 'tray', 'pot'].map((v) => ({
@@ -100,6 +104,7 @@ export function Products() {
       type: 'select',
       required: true,
       options: [
+        { value: 'auto', label: 'Automatic — based on sale unit' },
         { value: 'true', label: 'Whole units only (pieces, bags, packets)' },
         { value: 'false', label: 'Allow decimals (loose kg, litres)' },
       ],
@@ -165,6 +170,7 @@ export function Products() {
           ),
         }
       : {
+          sku: `P-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
           unit: 'piece',
           purchasePrice: '0',
           sellingPrice: '0',
@@ -173,7 +179,7 @@ export function Products() {
           active: 'true',
           purchaseFactor: '1',
           reorderQuantity: '0',
-          wholeUnits: 'true',
+          wholeUnits: 'auto',
         };
   return (
     <>
@@ -428,6 +434,15 @@ export function Products() {
       {edit && (
         <FormDialog
           title={edit === 'new' ? 'Add product' : 'Edit product'}
+          description="Enter the name, category, sale unit and prices. A product code is created for you. Add opening stock with Receive stock after saving."
+          simpleFields={[
+            'name',
+            'categoryId',
+            'unit',
+            'purchasePrice',
+            'sellingPrice',
+            ...(edit !== 'new' && edit.family_id ? ['variantLabel'] : []),
+          ]}
           fields={fields}
           initial={initial}
           onFieldChange={(name, value) => {
@@ -441,7 +456,7 @@ export function Products() {
               edit === 'new' ? 'POST' : 'PATCH',
               {
                 name: v.name,
-                sku: v.sku,
+                sku: v.sku?.trim() || initial.sku,
                 barcode: v.barcode || null,
                 categoryId: v.categoryId,
                 supplierId: v.supplierId || null,
@@ -457,7 +472,10 @@ export function Products() {
                 brand: v.brand,
                 description: v.description,
                 active: v.active === 'true',
-                wholeUnits: v.wholeUnits !== 'false',
+                wholeUnits:
+                  v.wholeUnits === 'auto'
+                    ? !['kg', 'g', 'liter', 'ml'].includes(v.unit!)
+                    : v.wholeUnits !== 'false',
                 ...(edit !== 'new' && edit.family_id ? { variantLabel: v.variantLabel } : {}),
                 attributes: Object.fromEntries(
                   Object.entries(v)

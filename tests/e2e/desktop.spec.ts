@@ -23,6 +23,7 @@ test('desktop login → product → purchase receipt → sale → receipt → st
     await page.getByLabel('Username').fill('admin');
     await page.getByLabel('Password', { exact: true }).fill('Local-test-only-2026');
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Good to see you, Test.' })).toBeVisible();
     await page.getByRole('link', { name: 'Products', exact: true }).click();
     await page.getByRole('button', { name: 'Add category' }).click();
@@ -32,14 +33,21 @@ test('desktop login → product → purchase receipt → sale → receipt → st
     await expect(page.getByRole('dialog')).toBeHidden();
     await page.getByRole('button', { name: 'Add product', exact: true }).click();
     await page.getByLabel('Product name').fill('Tomato seeds');
-    await page.getByLabel('SKU', { exact: false }).fill('TOM-01');
+    await expect(page.getByLabel('Product code', { exact: false })).toBeHidden();
     await page.getByLabel(/^Category \*/).selectOption({ label: 'Seeds' });
     await page.getByLabel('Purchase price (LKR)').fill('100');
     await page.getByLabel('Selling price (LKR)').fill('150');
-    await page.getByLabel('Low-stock threshold').fill('2');
+    await expect(page.getByLabel('Low-stock threshold')).toBeHidden();
+    await page.getByRole('dialog').screenshot({ path: resolve('.cache/product-simple.png') });
     await page.getByRole('button', { name: 'Save changes', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeHidden();
     await expect(page.getByText('Tomato seeds', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Edit Tomato seeds', exact: true }).click();
+    await page.getByRole('button', { name: 'More details (optional)', exact: true }).click();
+    await expect(page.getByLabel('Product code', { exact: false })).toHaveValue(/^P-[0-9A-F]{8}$/);
+    await page.getByLabel('Low-stock threshold').fill('2');
+    await page.getByRole('button', { name: 'Save changes', exact: true }).click();
+    await expect(page.getByRole('dialog')).toBeHidden();
     await page.getByRole('link', { name: 'Suppliers', exact: true }).click();
     await page.getByRole('button', { name: 'Add supplier' }).click();
     await page.getByLabel('Name', { exact: false }).fill('Green Nursery');
@@ -115,50 +123,36 @@ test('desktop login → product → purchase receipt → sale → receipt → st
     expect(sales.data).toHaveLength(2);
     await page.getByRole('link', { name: 'Inventory', exact: true }).click();
     await expect(page.getByRole('cell', { name: '3 piece', exact: true })).toBeVisible();
-    // Authorize and provision offline cash sales, then disconnect the real test API.
-    await page.getByRole('link', { name: 'Offline & sync', exact: true }).click();
-    await page.getByRole('button', { name: 'Authorize this terminal', exact: true }).click();
-    await expect(page.getByText('This terminal is authorized', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Prepare offline access', exact: true }).click();
-    await page.getByLabel('Offline PIN', { exact: false }).fill('19283746');
-    await page.getByLabel('Confirm PIN').fill('19283746');
-    await page.getByRole('button', { name: 'Save changes', exact: true }).click();
-    await expect(page.getByRole('dialog')).toBeHidden();
+    // Disconnect the cloud while the local POS keeps the same login, permissions and UI.
     await fetch('http://127.0.0.1:4199/__fixture/connection', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ offline: true }),
     });
-    await page.getByRole('button', { name: 'Switch to offline checkout', exact: true }).click();
-    await page.getByLabel('Offline PIN').fill('19283746');
-    await page.getByRole('button', { name: 'Save changes', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Point of sale', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await page.getByLabel('Username').fill('admin');
+    await page.getByLabel('Password', { exact: true }).fill('Local-test-only-2026');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Good to see you, Test.' })).toBeVisible();
+    await page.getByRole('link', { name: 'Point of sale', exact: true }).click();
     await page.getByRole('button', { name: /Seeds Tomato seeds/ }).click();
     await page.getByRole('button', { name: 'Take payment' }).click();
     await page.getByRole('button', { name: 'Confirm sale', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Sales history' })).toBeVisible();
-    const local = await page.evaluate(() => window.desktop.offlineStatus());
-    expect(local.operations).toHaveLength(1);
     await app.close();
     app = await launch();
     page = await app.firstWindow();
-    await page.getByRole('button', { name: 'Unlock offline', exact: true }).click();
-    await page.getByLabel('Offline PIN').fill('19283746');
-    await page.getByRole('button', { name: 'Save changes', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Point of sale', exact: true })).toBeVisible();
-    expect((await page.evaluate(() => window.desktop.offlineStatus())).operations).toHaveLength(1);
+    await expect(page.getByRole('heading', { name: 'Good to see you, Test.' })).toBeVisible();
     await fetch('http://127.0.0.1:4199/__fixture/connection', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ offline: false }),
     });
-    const sync = await page.evaluate(() => window.desktop.syncNow());
-    expect(sync.error).toBeUndefined();
-    expect((await page.evaluate(() => window.desktop.offlineStatus())).counts.synced).toBe(1);
-    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
-    await page.getByLabel('Username').fill('admin');
-    await page.getByLabel('Password', { exact: true }).fill('Local-test-only-2026');
-    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    const synchronized = await (
+      await fetch('http://127.0.0.1:4199/__fixture/sync', { method: 'POST' })
+    ).json();
+    expect(synchronized).toEqual({ pending: false, error: null });
     await page.getByRole('link', { name: 'Inventory', exact: true }).click();
     await expect(page.getByRole('cell', { name: '2 piece', exact: true })).toBeVisible();
     const finalSales = await page.evaluate(() =>

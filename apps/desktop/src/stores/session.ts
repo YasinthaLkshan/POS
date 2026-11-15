@@ -6,11 +6,15 @@ interface SessionState {
   theme: 'light' | 'dark' | 'system';
   setTheme: (theme: SessionState['theme']) => void;
 }
+if (localStorage.getItem('agripos-black-theme') !== '1') {
+  localStorage.setItem('agripos-theme', 'dark');
+  localStorage.setItem('agripos-black-theme', '1');
+}
 const initialTheme = localStorage.getItem('agripos-theme');
 export const useSession = create<SessionState>((set) => ({
   user: null,
   setUser: (user) => set({ user }),
-  theme: initialTheme === 'dark' || initialTheme === 'light' ? initialTheme : 'system',
+  theme: initialTheme === 'dark' || initialTheme === 'light' ? initialTheme : 'dark',
   setTheme: (theme) => {
     localStorage.setItem('agripos-theme', theme);
     set({ theme });

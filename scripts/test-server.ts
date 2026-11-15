@@ -6,6 +6,8 @@ import { createApp } from '../apps/api/src/app';
 import type { Actor } from '@agripos/shared';
 import { hashPassword } from '../apps/api/src/services/passwords';
 import { passwordAuthentication } from '../apps/api/src/middleware/auth';
+import { LocalDatabase } from '../apps/api/src/database/sqlite';
+import { CloudSync } from '../apps/desktop/electron/services/cloud-sync';
 const db = await testDatabase();
 process.env.OFFLINE_SIGNING_KEY = 'isolated-e2e-offline-signing-key-never-production';
 const actor: Actor = {
@@ -32,18 +34,24 @@ await db.query(
 const server = express();
 server.use(express.json());
 let disconnected = false;
+const local = new LocalDatabase(':memory:');
+const sync = new CloudSync(local, {
+  ...db,
+  transaction: (fn) => {
+    if (disconnected) return Promise.reject(new Error('Test cloud disconnected'));
+    return db.transaction(fn);
+  },
+});
+await sync.sync();
 server.post('/__fixture/connection', (req, res) => {
   disconnected = req.body.offline === true;
   res.json({ offline: disconnected });
 });
-server.use('/api/v1', (_req, res, next) => {
-  if (disconnected)
-    res
-      .status(503)
-      .json({ error: { code: 'CONNECTION_ERROR', message: 'Isolated test service offline' } });
-  else next();
+server.post('/__fixture/sync', async (_req, res) => {
+  await sync.sync();
+  res.json({ pending: sync.pending, error: sync.lastError });
 });
-server.use(createApp(db, passwordAuthentication(db)));
+server.use(createApp(local, passwordAuthentication(local)));
 const listener = server.listen(4199, '127.0.0.1');
 const shutdown = () => listener.close(() => void db.close().then(() => process.exit(0)));
 process.on('SIGINT', shutdown);

@@ -24,6 +24,7 @@ export function FormDialog({
   onFieldChange,
   children,
   submitLabel = 'Save changes',
+  simpleFields,
 }: {
   title: string;
   description?: string;
@@ -34,7 +35,9 @@ export function FormDialog({
   onFieldChange?: (name: string, value: string) => void;
   children?: ReactNode;
   submitLabel?: string;
+  simpleFields?: string[];
 }) {
+  const [showExtra, setShowExtra] = useState(false);
   const schema = z.object(
     Object.fromEntries(
       fields.map((f) => [
@@ -90,55 +93,79 @@ export function FormDialog({
             </button>
           </div>
           <form
-            onSubmit={handleSubmit(async (values) => {
-              setError('');
-              try {
-                await onSave(values);
-                onClose();
-              } catch (e) {
-                setError(e instanceof Error ? e.message : 'Unable to save');
-              }
-            })}
+            onSubmit={handleSubmit(
+              async (values) => {
+                setError('');
+                try {
+                  await onSave(values);
+                  onClose();
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : 'Unable to save');
+                }
+              },
+              () => setShowExtra(true),
+            )}
           >
             {children}
             <div className="form-grid">
-              {fields.map((f) => (
-                <label key={f.name} className={f.type === 'textarea' ? 'full' : ''}>
-                  {f.label}
-                  {f.required ? ' *' : ''}
-                  {f.type === 'select' ? (
-                    <select
-                      {...register(f.name, {
-                        onChange: (event: { target: { value: string } }) =>
-                          onFieldChange?.(f.name, event.target.value),
-                      })}
-                    >
-                      <option value="">Select…</option>
-                      {f.options?.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : f.type === 'textarea' ? (
-                    <textarea {...register(f.name)} rows={3} />
-                  ) : (
-                    <input
-                      defaultValue={initial[f.name] ?? ''}
-                      {...register(f.name)}
-                      type={f.type ?? 'text'}
-                      min={f.min}
-                      step={f.step ?? 'any'}
-                      autoComplete={f.type === 'password' ? 'new-password' : 'off'}
-                    />
-                  )}{' '}
-                  {f.hint && <small className="muted">{f.hint}</small>}
-                  {errors[f.name] && (
-                    <small className="error-text">{String(errors[f.name]?.message)}</small>
-                  )}
-                </label>
-              ))}
+              {[...fields]
+                .sort((a, b) =>
+                  simpleFields
+                    ? Number(!simpleFields.includes(a.name)) -
+                      Number(!simpleFields.includes(b.name))
+                    : 0,
+                )
+                .map((f) => (
+                  <label
+                    key={f.name}
+                    hidden={!!simpleFields && !showExtra && !simpleFields.includes(f.name)}
+                    className={f.type === 'textarea' ? 'full' : ''}
+                  >
+                    {f.label}
+                    {f.required ? ' *' : ''}
+                    {f.type === 'select' ? (
+                      <select
+                        {...register(f.name, {
+                          onChange: (event: { target: { value: string } }) =>
+                            onFieldChange?.(f.name, event.target.value),
+                        })}
+                      >
+                        <option value="">Select…</option>
+                        {f.options?.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : f.type === 'textarea' ? (
+                      <textarea {...register(f.name)} rows={3} />
+                    ) : (
+                      <input
+                        defaultValue={initial[f.name] ?? ''}
+                        {...register(f.name)}
+                        type={f.type ?? 'text'}
+                        min={f.min}
+                        step={f.step ?? 'any'}
+                        autoComplete={f.type === 'password' ? 'new-password' : 'off'}
+                      />
+                    )}{' '}
+                    {f.hint && <small className="muted">{f.hint}</small>}
+                    {errors[f.name] && (
+                      <small className="error-text">{String(errors[f.name]?.message)}</small>
+                    )}
+                  </label>
+                ))}
             </div>
+            {simpleFields && (
+              <button
+                type="button"
+                className="text-btn product-more"
+                aria-expanded={showExtra}
+                onClick={() => setShowExtra(!showExtra)}
+              >
+                {showExtra ? 'Hide optional details' : 'More details (optional)'}
+              </button>
+            )}
             {error && (
               <div role="alert" className="alert danger">
                 {error}

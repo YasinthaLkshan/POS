@@ -15,6 +15,7 @@ import {
   prepareOffline,
   unlockOffline,
   offlineStatus,
+  setWorkOffline,
   syncNow,
   lockOffline,
   saveLocalImage,
@@ -27,6 +28,8 @@ import { printPaymentReceipt, printReceipt } from '../printing/receipt';
 import { printDocument, printReport } from '../printing/report';
 import { windowState, saveWindow, logEvent } from '../services/runtime';
 let window: BrowserWindow | null = null;
+if (!app.isPackaged && process.env.AGRIPOS_TEST_USER_DATA)
+  app.setPath('userData', process.env.AGRIPOS_TEST_USER_DATA);
 if (!app.requestSingleInstanceLock()) app.quit();
 else
   app.on('second-instance', () => {
@@ -35,8 +38,6 @@ else
       window.focus();
     }
   });
-if (!app.isPackaged && process.env.AGRIPOS_TEST_USER_DATA)
-  app.setPath('userData', process.env.AGRIPOS_TEST_USER_DATA);
 app.whenReady().then(() => {
   void ensureEmbeddedStarted().catch((error: unknown) =>
     logEvent('database.start.failure', { error: error instanceof Error ? error.name : 'Unknown' }),
@@ -136,6 +137,7 @@ app.whenReady().then(() => {
   handle('product:image', (input) => uploadImage(`/products/${id.parse(input)}/image`));
   handle('shop:logo', () => uploadImage('/settings/logo'));
   handle('offline:status', () => offlineStatus());
+  handle('offline:mode', (input) => setWorkOffline(z.boolean().parse(input)));
   handle('offline:prepare', (input) =>
     prepareOffline(
       z

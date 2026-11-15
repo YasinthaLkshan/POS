@@ -1,4 +1,5 @@
 ﻿import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import brandLogo from '../assets/dilshan-agro.jpeg';
 import {
   LayoutDashboard,
   ShoppingBasket,
@@ -66,7 +67,7 @@ const sections: { label: string | null; links: NavLinkItem[] }[] = [
       { path: '/expenses', label: 'Expenses', icon: Banknote, permission: 'expenses.write' },
       { path: '/cash-sessions', label: 'Cash registers', icon: Wallet, permission: 'sales.write' },
       { path: '/staff', label: 'Staff & roles', icon: ShieldCheck, permission: 'staff.manage' },
-      { path: '/sync', label: 'Offline & sync', icon: Cloud, permission: 'sales.write' },
+      { path: '/sync', label: 'Cloud sync', icon: Cloud, permission: 'sales.write' },
     ],
   },
 ];
@@ -107,12 +108,16 @@ export function Shell() {
                 style={{ width: 30, height: 30, objectFit: 'contain' }}
               />
             ) : (
-              <Sprout size={25} />
+              <img
+                src={brandLogo}
+                alt="Dilshan Agro"
+                style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: 6 }}
+              />
             )}
           </span>
           {!collapsed && (
             <span>
-              Agri<span className="brand-light">POS</span>
+              Dilshan <span className="brand-light">Agro</span>
             </span>
           )}
         </div>
@@ -158,7 +163,7 @@ export function Shell() {
               </>
             )}
           </button>
-          {!collapsed && <small>AgriPOS · v0.6.0</small>}
+          {!collapsed && <small>AgriPOS · v0.7.5</small>}
         </div>
       </aside>
       <div className="workspace">
@@ -185,11 +190,15 @@ export function Shell() {
           <div className={`connection ${health.error ? 'error-text' : ''}`}>
             {health.error ? <AlertTriangle size={15} /> : <Cloud size={15} />}
             <span>
-              {user?.offline
-                ? 'Offline snapshot'
-                : health.error
-                  ? 'Service unavailable'
-                  : 'Connected'}
+              {syncState.data?.workOffline
+                ? 'Offline · saved locally'
+                : user?.offline
+                  ? 'Offline snapshot'
+                  : health.error
+                    ? 'Service unavailable'
+                    : syncState.data?.operations.length
+                      ? 'Saved locally · sync pending'
+                      : 'Shop ready'}
             </span>
           </div>
           {!!syncState.data?.operations.length && (
@@ -197,7 +206,7 @@ export function Shell() {
               className={`text-btn ${syncState.data.operations.some((o) => o.state === 'failed' || o.state === 'conflict') ? 'error-text' : ''}`}
               onClick={() => navigate('/sync')}
             >
-              {syncState.data.operations.length} receipt(s) awaiting sync
+              Shop changes awaiting sync
             </button>
           )}
           <button

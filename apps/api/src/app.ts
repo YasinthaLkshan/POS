@@ -730,17 +730,21 @@ export function createApp(db: Database, authenticate: Authenticate) {
       code = 'VALIDATION_ERROR';
       message = err.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
     } else if (err && typeof err === 'object' && 'code' in err) {
-      if (err.code === '23505') {
+      if (
+        ['23505', 'SQLITE_CONSTRAINT_UNIQUE', 'SQLITE_CONSTRAINT_PRIMARYKEY'].includes(
+          String(err.code),
+        )
+      ) {
         status = 409;
         code = 'DUPLICATE';
         message = 'A record with these details already exists';
       }
-      if (err.code === '23503') {
+      if (err.code === '23503' || err.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
         status = 422;
         code = 'INVALID_REFERENCE';
         message = 'A selected record does not belong to this shop or no longer exists';
       }
-      if (err.code === '23514') {
+      if (err.code === '23514' || err.code === 'SQLITE_CONSTRAINT_CHECK') {
         status = 422;
         code = 'INVALID_VALUE';
         message = 'The values violate a business constraint';
