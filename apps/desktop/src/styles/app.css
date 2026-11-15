@@ -1972,3 +1972,137 @@ th.cell-end .table-sort {
     animation: none !important;
   }
 }
+
+/* Connection controls and cloud synchronization workspace. */
+.shop-connection-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--soft);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.shop-connection-status > svg {
+  flex-shrink: 0;
+  color: #e49c83;
+}
+.shop-connection-status.connected > svg {
+  color: var(--primary);
+}
+.shop-connection-status span {
+  flex: 1;
+  min-width: 0;
+}
+.shop-connection-status strong,
+.shop-connection-status small {
+  display: block;
+}
+.shop-connection-status small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.shop-connection-status:hover {
+  border-color: var(--primary);
+}
+.shop-connection-status:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.sync-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  max-width: 1200px;
+  align-items: start;
+}
+.sync-card {
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+.sync-card h2,
+.sync-card p {
+  margin: 0;
+}
+.sync-card h2 {
+  font-size: 19px;
+}
+.sync-card p {
+  line-height: 1.7;
+}
+.sync-card-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.sync-card-heading .muted {
+  margin-top: 5px;
+  font-size: 13px;
+}
+.sync-icon {
+  color: var(--primary);
+  background: var(--soft);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-shrink: 0;
+}
+.sync-control {
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.sync-control .offline-mode {
+  margin: 0;
+}
+.sync-footnote,
+.sync-switch-note {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.sync-switch-note {
+  max-width: 1200px;
+  margin-top: 22px;
+}
+.sync-details {
+  margin: 0;
+  display: grid;
+  gap: 14px;
+}
+.sync-details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+.sync-details dt {
+  color: var(--muted);
+}
+.sync-details dd {
+  margin: 0;
+  text-align: right;
+}
+.sync-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.sync-card .alert {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1150px) {
+  .sync-layout {
+    grid-template-columns: 1fr;
+  }
+}

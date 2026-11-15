@@ -17,6 +17,8 @@ test('packaged Windows executable starts with a sandbox and loads native SQLite'
   });
   try {
     const page = await app.firstWindow();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     page.on('console', (message) => {
@@ -32,7 +34,7 @@ test('packaged Windows executable starts with a sandbox and loads native SQLite'
       await page.getByRole('link', { name: 'Cloud sync', exact: true }).click();
     await expect(page.getByRole('checkbox', { name: 'Work offline', exact: true })).toBeVisible();
     const info = await page.evaluate(() => window.desktop.info());
-    expect(info.version).toBe('0.7.5');
+    expect(info.version).toBe('0.7.6');
     expect(info.contextIsolated).toBe(true);
     expect(info.sandboxed).toBe(true);
     expect(await page.evaluate(() => typeof Reflect.get(window, 'require'))).toBe('undefined');

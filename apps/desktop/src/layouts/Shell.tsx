@@ -163,7 +163,7 @@ export function Shell() {
               </>
             )}
           </button>
-          {!collapsed && <small>AgriPOS · v0.7.5</small>}
+          {!collapsed && <small>AgriPOS · v0.7.6</small>}
         </div>
       </aside>
       <div className="workspace">

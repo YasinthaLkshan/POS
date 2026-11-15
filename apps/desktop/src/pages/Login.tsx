@@ -1,13 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ShieldCheck, ArrowRight } from 'lucide-react';
+import {
+  ShieldCheck,
+  ArrowRight,
+  CircleCheck,
+  CircleX,
+  LoaderCircle,
+  PauseCircle,
+} from 'lucide-react';
 import brandLogo from '../assets/dilshan-agro.jpeg';
 import { useSession } from '../stores/session';
 import { api } from '../services/api';
-import { FormDialog } from '../components/FormDialog';
-import { toast } from 'sonner';
+import { ShopConnectionDialog } from '../components/ShopConnectionDialog';
 import { OfflineMode } from '../components/OfflineMode';
 const schema = z.object({
   username: z.string().min(3, 'Enter your username'),
@@ -21,6 +28,34 @@ export function Login() {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<z.infer<typeof schema>>({ resolver: zodResolver(schema) });
+  const connection = useQuery({
+    queryKey: ['shop-connection'],
+    queryFn: () => window.desktop.backupStatus(),
+    refetchInterval: 5000,
+  });
+  const offline = useQuery({
+    queryKey: ['offline-status'],
+    queryFn: () => window.desktop.offlineStatus(),
+    refetchInterval: 5000,
+  });
+  const checkedSetup = useRef(false);
+  const info = useQuery({ queryKey: ['connection-info'], queryFn: () => window.desktop.info() });
+  useEffect(() => {
+    if (info.data && !checkedSetup.current) {
+      checkedSetup.current = true;
+      if (!info.data.configured) setSetup(true);
+    }
+  }, [info.data]);
+  const paused = offline.data?.workOffline;
+  const connected = !!connection.data?.lastCloudAt && !connection.data?.lastError;
+  const checking = connection.isPending || connection.data?.running;
+  const StatusIcon = checking
+    ? LoaderCircle
+    : paused
+      ? PauseCircle
+      : connected
+        ? CircleCheck
+        : CircleX;
   const setUser = useSession((s) => s.setUser);
   return (
     <div className="login">
@@ -92,8 +127,31 @@ export function Login() {
           </form>
           <OfflineMode />
           <div className="login-links">
-            <button className="text-btn" onClick={() => setSetup(true)}>
-              Connect your shop
+            <button
+              type="button"
+              className={`shop-connection-status ${connected && !paused ? 'connected' : ''}`}
+              onClick={() => setSetup(true)}
+            >
+              <StatusIcon size={20} aria-hidden="true" />
+              <span>
+                <strong>
+                  {checking
+                    ? 'Checking shop connection'
+                    : paused
+                      ? 'Cloud sync paused'
+                      : connected
+                        ? 'Shop connected'
+                        : connection.data?.cloudConfigured
+                          ? 'Cloud disconnected'
+                          : 'Connect your shop'}
+                </strong>
+                <small>
+                  {connection.data?.cloudConfigured
+                    ? 'Click to manage your connection'
+                    : 'Set up this computer once to get started'}
+                </small>
+              </span>
+              <ArrowRight size={16} aria-hidden="true" />
             </button>
           </div>
           <div className="secure-note">
@@ -103,34 +161,10 @@ export function Login() {
         </div>
       </main>
       {setup && (
-        <FormDialog
-          title="Connect your shop"
-          description="Enter your Neon cloud connection once. AgriPOS saves your shop on this computer automatically, so the same username, password and features work without internet. For a new shop only, choose an initial administrator password."
-          fields={[
-            {
-              name: 'databaseUrl',
-              label: 'Neon cloud database URL',
-              type: 'password',
-              required: true,
-              hint: 'Your cloud URL is protected by Windows secure storage. No local database setup is needed.',
-            },
-            {
-              name: 'adminPassword',
-              label: 'Initial admin password (new database)',
-              type: 'password',
-            },
-            { name: 'shopName', label: 'Shop name (new database)' },
-            { name: 'existingStaffId', label: 'Existing administrator staff ID (existing shop)' },
-          ]}
+        <ShopConnectionDialog
           onClose={() => setSetup(false)}
-          onSave={async (values) => {
-            await window.desktop.configure({
-              databaseUrl: values.databaseUrl!,
-              ...(values.adminPassword ? { adminPassword: values.adminPassword } : {}),
-              ...(values.shopName ? { shopName: values.shopName } : {}),
-              ...(values.existingStaffId ? { existingStaffId: values.existingStaffId } : {}),
-            });
-            toast.success('Shop connection saved');
+          onSaved={async () => {
+            await connection.refetch();
           }}
         />
       )}

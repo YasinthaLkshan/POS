@@ -25,6 +25,9 @@ test('desktop login → product → purchase receipt → sale → receipt → st
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Good to see you, Test.' })).toBeVisible();
+    await page.getByRole('link', { name: 'Cloud sync', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Neon cloud' })).toBeVisible();
+    await page.screenshot({ path: resolve('.cache/sync-layout.png') });
     await page.getByRole('link', { name: 'Products', exact: true }).click();
     await page.getByRole('button', { name: 'Add category' }).click();
     await page.getByLabel('Category name').fill('Seeds');

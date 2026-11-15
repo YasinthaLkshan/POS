@@ -1,5 +1,11 @@
 # AgriPOS implementation progress
 
+## Release 0.7.6 - connection status and sync screen layout
+
+First use opens Connect your shop automatically when no saved configuration exists. Login displays a clickable connected check, disconnected cross, checking state or manually paused status, based on sync results. The connection form is shared with Cloud synchronization for reconnecting. The sync screen now uses padded responsive cards, separate local/cloud status, readable timestamps and grouped actions.
+
+Verified: isolated Electron tests for first-use setup, connected status after saving, no setup popup on reload, disconnected status and reopening connection settings; the existing checkout/offline end-to-end workflow also passes. Screenshots reviewed for login and cloud sync layouts.
+
 ## Release 0.7.5 - keep local work responsive during cloud sync
 
 Cloud requests no longer hold the SQLite operation queue. Local work continues while Neon is slow or unreachable; changes made during an upload remain pending for the next automatic 30-second retry. A cloud download cannot overwrite local changes made during that request. Sync errors now distinguish connection problems, rejected credentials and database error codes without exposing credentials. The Cloud synchronization screen explains automatic offline saving and retry behavior.
