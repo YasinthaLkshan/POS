@@ -54,12 +54,9 @@ export function FormDialog({
     resolver: zodResolver(schema),
     defaultValues: Object.fromEntries(fields.map((f) => [f.name, initial[f.name] ?? ''])),
   });
-  const [error, setError] = useState(''),
-    [confirm, setConfirm] = useState(false);
+  const [error, setError] = useState('');
   const close = () => {
-    if (isSubmitting) return;
-    if (isDirty) setConfirm(true);
-    else onClose();
+    if (!isSubmitting) onClose();
   };
   return (
     <Dialog.Root
@@ -73,7 +70,7 @@ export function FormDialog({
         <Dialog.Content
           className="dialog-content"
           onInteractOutside={(e) => {
-            if (isSubmitting) e.preventDefault();
+            if (isSubmitting || isDirty) e.preventDefault();
           }}
         >
           <div className="dialog-heading">
@@ -156,33 +153,22 @@ export function FormDialog({
                   </label>
                 ))}
             </div>
-            {simpleFields && (
-              <button
-                type="button"
-                className="text-btn product-more"
-                aria-expanded={showExtra}
-                onClick={() => setShowExtra(!showExtra)}
-              >
-                {showExtra ? 'Hide optional details' : 'More details (optional)'}
-              </button>
-            )}
             {error && (
               <div role="alert" className="alert danger">
                 {error}
               </div>
             )}
-            {confirm && (
-              <div className="alert warning">
-                Discard unsaved changes?
-                <button type="button" className="btn secondary" onClick={onClose}>
-                  Discard
-                </button>
-                <button type="button" className="btn secondary" onClick={() => setConfirm(false)}>
-                  Keep editing
-                </button>
-              </div>
-            )}
             <div className="form-actions">
+              {simpleFields && (
+                <button
+                  type="button"
+                  className="text-btn product-more"
+                  aria-expanded={showExtra}
+                  onClick={() => setShowExtra(!showExtra)}
+                >
+                  {showExtra ? 'Hide optional details' : 'More details (optional)'}
+                </button>
+              )}
               <button
                 type="button"
                 className="btn secondary"

@@ -11,7 +11,7 @@ import {
   LoaderCircle,
   PauseCircle,
 } from 'lucide-react';
-import brandLogo from '../assets/dilshan-agro.jpeg';
+import brandLogo from '../../resources/logo.jpeg';
 import { useSession } from '../stores/session';
 import { api } from '../services/api';
 import { ShopConnectionDialog } from '../components/ShopConnectionDialog';

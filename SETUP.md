@@ -1,6 +1,6 @@
 # AgriPOS setup
 
-1. Install AgriPOS Setup 0.7.0.exe on Windows.
+1. Run the Windows installer for your AgriPOS release (`AgriPOS Setup <version>.exe`).
 2. Open **Connect your shop** and paste your **Neon cloud database URL**. The URL is encrypted using Windows secure storage on this computer; it is never included in the installer.
 3. For an existing shop, keep the existing username and password. For a new empty database, enter a shop name and an initial admin password of 12–256 characters, then sign in as admin.
 4. Connect to the internet for the first download. After that, the same login, screens and role permissions work offline.

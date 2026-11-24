@@ -1,5 +1,5 @@
 ﻿import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import brandLogo from '../assets/dilshan-agro.jpeg';
+import brandLogo from '../../resources/logo.jpeg';
 import {
   LayoutDashboard,
   ShoppingBasket,
@@ -163,7 +163,7 @@ export function Shell() {
               </>
             )}
           </button>
-          {!collapsed && <small>AgriPOS · v0.7.6</small>}
+          {!collapsed && <small>AgriPOS · v0.7.8</small>}
         </div>
       </aside>
       <div className="workspace">

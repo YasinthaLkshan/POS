@@ -1,5 +1,5 @@
 ﻿import { test, expect, _electron as electron } from '@playwright/test';
-import { existsSync, mkdtempSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 test('packaged Windows executable starts with a sandbox and loads native SQLite', async () => {
   const executablePath = resolve('apps/desktop/release/win-unpacked/AgriPOS.exe');
@@ -10,7 +10,7 @@ test('packaged Windows executable starts with a sandbox and loads native SQLite'
   delete env.AGRIPOS_API_URL;
   const app = await electron.launch({
     executablePath,
-    args: [`--user-data-dir=${mkdtempSync(resolve('.cache/packaged-smoke-'))}`],
+    args: [`--user-data-dir=${test.info().outputPath('profile')}`],
     env: Object.fromEntries(
       Object.entries(env).filter((entry): entry is [string, string] => entry[1] !== undefined),
     ),
@@ -34,7 +34,7 @@ test('packaged Windows executable starts with a sandbox and loads native SQLite'
       await page.getByRole('link', { name: 'Cloud sync', exact: true }).click();
     await expect(page.getByRole('checkbox', { name: 'Work offline', exact: true })).toBeVisible();
     const info = await page.evaluate(() => window.desktop.info());
-    expect(info.version).toBe('0.7.6');
+    expect(info.version).toBe('0.7.8');
     expect(info.contextIsolated).toBe(true);
     expect(info.sandboxed).toBe(true);
     expect(await page.evaluate(() => typeof Reflect.get(window, 'require'))).toBe('undefined');

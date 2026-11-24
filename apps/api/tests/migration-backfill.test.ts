@@ -5,10 +5,10 @@ import { randomUUID } from 'node:crypto';
 it('moves existing credit invoices onto installments without changing any balance', async () => {
   const pg = new PGlite();
   try {
-    const files = (await readdir('supabase/migrations')).filter((n) => n.endsWith('.sql')).sort();
+    const files = (await readdir('migrations')).filter((n) => n.endsWith('.sql')).sort();
     const apply = async (names: string[]) => {
       for (const name of names)
-        await pg.exec(await readFile(`supabase/migrations/${name}`, 'utf8'));
+        await pg.exec(await readFile(`migrations/${name}`, 'utf8'));
     };
     await apply(files.filter((n) => n < '014'));
     const shop = randomUUID(),

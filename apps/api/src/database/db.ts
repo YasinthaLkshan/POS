@@ -12,9 +12,22 @@ export interface Connection {
 export interface Database extends Connection {
   transaction<T>(fn: (tx: Connection) => Promise<T>): Promise<T>;
   close(): Promise<void>;
+  /** Reports a dropped idle network socket without letting Node treat it as unhandled. */
+  onUnexpectedError?(handler: (error: unknown) => void): () => void;
 }
 export function postgres(url: string, connectionTimeoutMillis = 10000): Database {
   const pool = new pg.Pool({ connectionString: url, max: 10, connectionTimeoutMillis });
+  const errorHandlers = new Set<(error: unknown) => void>();
+  // PostgreSQL can close an idle socket while Windows is asleep. pg emits that error on the
+  // pool; without this listener Node surfaces it as an uncaught main-process exception.
+  pool.on('error', (error) => {
+    for (const handler of errorHandlers)
+      try {
+        handler(error);
+      } catch {
+        // An error-reporting callback must never turn an idle network error into a crash.
+      }
+  });
   return {
     query: async <T extends Row>(sql: string, params?: unknown[]) =>
       (await pool.query<T>(sql, params)).rows,
@@ -36,6 +49,10 @@ export function postgres(url: string, connectionTimeoutMillis = 10000): Database
       }
     },
     close: () => pool.end(),
+    onUnexpectedError: (handler) => {
+      errorHandlers.add(handler);
+      return () => errorHandlers.delete(handler);
+    },
   };
 }
 /** Creates the database named in the URL when the server reports it missing. */

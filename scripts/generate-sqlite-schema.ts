@@ -2,8 +2,8 @@
 import { PGlite } from '@electric-sql/pglite';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 const pg = new PGlite();
-for (const file of (await readdir('supabase/migrations')).filter((f) => f.endsWith('.sql')).sort())
-  await pg.exec(await readFile(`supabase/migrations/${file}`, 'utf8'));
+for (const file of (await readdir('migrations')).filter((f) => f.endsWith('.sql')).sort())
+  await pg.exec(await readFile(`migrations/${file}`, 'utf8'));
 const tables = (
   await pg.query<{ name: string }>(
     "SELECT tablename name FROM pg_tables WHERE schemaname='public' ORDER BY tablename",

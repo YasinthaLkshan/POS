@@ -84,11 +84,17 @@ export class CloudSync {
   running = false;
   lastError: string | null = null;
   lastSyncedAt: string | null = null;
+  private stopListening?: () => void;
   constructor(
     readonly local: LocalDatabase,
     private cloud: Database,
   ) {
     this.lastSyncedAt = this.get('lastSyncedAt');
+    this.stopListening = cloud.onUnexpectedError?.((error) => {
+      // Idle Neon connections are expected to disappear during laptop sleep. Keep local work
+      // available and let the normal retry timer establish a fresh connection after wake.
+      this.lastError = syncFailureMessage(error);
+    });
   }
   private get(key: string) {
     return (
@@ -277,6 +283,7 @@ export class CloudSync {
     }
   }
   async close() {
+    this.stopListening?.();
     await this.cloud.close();
   }
   get offline() {

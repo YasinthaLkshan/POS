@@ -1,6 +1,6 @@
 {
   "name": "agripos",
-  "version": "0.7.6",
+  "version": "0.7.8",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -46,7 +46,6 @@
     "@types/react-dom": "^19.2.0",
     "@types/supertest": "^6.0.3",
     "@vitejs/plugin-react": "^5.1.0",
-    "concurrently": "^9.2.1",
     "eslint": "^9.39.0",
     "prettier": "^3.6.2",
     "supertest": "^7.1.4",

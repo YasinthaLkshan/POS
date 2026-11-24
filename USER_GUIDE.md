@@ -10,7 +10,7 @@ Create categories and select their product type. Add products with unique SKU/ba
 
 Use **Import CSV** for up to 200 new products. Required headers are `name,sku,category,selling_price,purchase_price`; categories must already exist. Optional fields are `barcode,unit,minimum_stock,tax_percent,brand,description`. Prices use decimal LKR values. The entire file succeeds or rolls back. Duplicate SKUs are rejected rather than overwritten.
 
-Upload product thumbnails from the catalog. The desktop converts them into small PNG files and saves them in its own local app data. To display an image on another computer, add it there too. Back up each desktop's app data to preserve its images.
+Upload product thumbnails from the catalog. Images synchronize with the rest of the shop. Re-upload images from older desktop versions if they exist only on that computer.
 
 Register suppliers, create purchase orders, then **Receive goods** when stock physically arrives. Record base-unit quantities, batch/lot numbers, expiry dates and optional manufacture/supplier lot details. Partial receiving is supported. Creating an order alone adds no stock.
 
@@ -58,13 +58,7 @@ Supplier balances increase when goods are received, decrease when payments or re
 
 ## Offline selling
 
-When the internet is down, keep working normally: every till uses the shop database on the main shop computer, so all features stay available. The steps below are only for a till that cannot reach the main computer at all.
-
-While connected, an administrator authorizes the terminal and the cashier prepares a 12-hour catalog snapshot and PIN in **Offline & sync**. Resolve pending online checkouts first. Switch to offline checkout or choose **Unlock offline** at login during an outage.
-
-Offline mode permits walk-in cash sales and local receipts. No credit, discounts, card payments, returns, purchasing or catalog edits are permitted. The banner identifies the cached snapshot. Paid receipts remain in the local queue until accepted by the server.
-
-When connectivity returns, synchronize. Conflicts remain visible and need a manager; do not delete them. Sign out and sign in online to return to live data. Prepare a fresh snapshot after all earlier receipts are accepted. See [OFFLINE_SYNC.md](OFFLINE_SYNC.md) for exact policies.
+After the first shop download, sign in and use the POS normally during an outage. Enable **Work offline** to pause cloud sync manually. Before switching computers, go online, turn off **Work offline**, and choose **Cloud sync > Sync now**. Wait for synchronization to finish. See [Offline synchronization](OFFLINE_SYNC.md).
 
 ## Daily business
 
@@ -74,7 +68,7 @@ When connectivity returns, synchronize. Conflicts remain visible and need a mana
 
 Select a business-date range in Reports. Detailed reports include product/category/employee sales, stock valuation, low stock, expiry, purchases, expenses, customer/supplier balances, cash closing, returns, movements and audit activity. Exports include CSV, Excel-compatible XML and PDF. Current stock/balance reports show current state rather than historical balances.
 
-At closing, synchronize all offline receipts, review unresolved payments, count actual cash and close the register. On the main shop computer, check **Settings > Backup and recovery** and click **Back up now** before shutting down. AgriPOS records expected cash, counted cash and the difference. Investigate differences through cash movement and sales records rather than changing accounting history.
+At closing, review unresolved payments, count actual cash and close the register. Investigate differences through cash movements and sales records. Synchronize before switching computers.
 
 Settings controls credit defaults (driver installments and months, normal customer period, due-soon days), the next invoice number, lorry driver discounts per size, shop/receipt details, logo, invoice prefix, default tax, register policy, theme, printer margins, keyboard shortcuts, your profile name and password changes according to role. Administrators can create staff usernames with initial passwords and change their access. Staff should change their initial password after first sign-in.
 

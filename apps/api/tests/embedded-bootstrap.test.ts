@@ -19,7 +19,7 @@ it('migrates an empty database and creates a working first administrator once', 
     close: () => pg.close(),
   };
   try {
-    expect(await runMigrations(db, 'supabase/migrations')).toBeGreaterThan(0);
+    expect(await runMigrations(db, 'migrations')).toBeGreaterThan(0);
     await expect(ensureAdministrator(db, {})).rejects.toThrow('initial administrator password');
     expect(
       await ensureAdministrator(db, { password: 'new-secret-123', shopName: 'Test Shop' }),
@@ -27,7 +27,7 @@ it('migrates an empty database and creates a working first administrator once', 
     expect(
       (await login(db, { username: 'admin', password: 'new-secret-123' })).user.shopId,
     ).toBeTruthy();
-    expect(await runMigrations(db, 'supabase/migrations')).toBe(0);
+    expect(await runMigrations(db, 'migrations')).toBe(0);
     expect(await ensureAdministrator(db, {})).toEqual({ created: false });
   } finally {
     await db.close();

@@ -40,7 +40,6 @@ PowerShell users should use `npm.cmd` to avoid execution-policy restrictions on 
 | Windows Electron workflows           | `npm.cmd run test:e2e`                                           |
 | Apply SQL migrations                 | `npm.cmd run db:migrate`                                         |
 | Provision the first administrator    | `npm.cmd run setup:admin`                                        |
-| Share PostgreSQL on the shop network | `scripts\setup-shop-server.ps1 -DryRun` (then without, as admin) |
 | Check API and SQL setup              | `npm.cmd run setup:check`                                        |
 | Create development training shop     | `npm.cmd run db:seed`                                            |
 | Build both applications              | `npm.cmd run build`                                              |
@@ -59,6 +58,6 @@ The native Vitest config loader avoids esbuild config discovery problems in rest
 
 ## Repository
 
-`apps/api` supplies the Express API embedded by `apps/desktop/electron`, and can also be deployed independently. `apps/desktop/src` contains the renderer. Shared contracts, permissions, and integer calculations live in `packages/shared`; reusable UI primitives live in `packages/ui`. SQL migrations are in `supabase/migrations`.
+`apps/api` supplies the Express API embedded by `apps/desktop/electron`, and can also be deployed independently. `apps/desktop/src` contains the renderer. Shared contracts, permissions, and integer calculations live in `packages/shared`. Reusable desktop components live in `apps/desktop/src/components`. SQL migrations are in `migrations`.
 
 Tests use real PostgreSQL semantics through PGlite, real SQLite, and an actual Electron process. They do not establish that a live Neon project, payment provider, or physical printer has been configured successfully.

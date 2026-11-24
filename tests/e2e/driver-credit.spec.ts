@@ -1,8 +1,8 @@
 import { test, expect, _electron as electron } from '@playwright/test';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 test('factory → driver → variants → driver credit sale → partial payment → receipts', async () => {
-  const userData = await mkdtemp(resolve('.cache/e2e-credit-profile-'));
+  const userData = test.info().outputPath('profile');
   const env = { ...process.env };
   delete env.ELECTRON_RUN_AS_NODE;
   const app = await electron.launch({

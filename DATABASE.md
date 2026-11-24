@@ -1,6 +1,6 @@
 ﻿# Database
 
-Migrations are ordered SQL files in `supabase/migrations`. The migration runner uses a PostgreSQL advisory lock, a single transaction and SHA-256 checksums. Never edit an already applied migration; add a new one.
+Migrations are ordered SQL files in `migrations`. The migration runner uses a PostgreSQL advisory lock, a single transaction and SHA-256 checksums. Never edit an already applied migration; add a new one.
 
 | Tables                                              | Purpose and relationships                                                                                        |
 | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
@@ -52,8 +52,8 @@ Business dates use `Asia/Colombo`. Sales appear on sale dates and returns on ret
 
 ## RLS and grants
 
-Every application table has RLS enabled. `PUBLIC`, `anon` and `authenticated` receive no direct business-table grants. The trusted backend uses a separately controlled database role with access; see [SECURITY.md](SECURITY.md). The financial-events view is also revoked from direct clients. Migration 013 adds local account credentials and sessions. Historical Firebase UID and image-byte columns remain for data preservation but are unused. New image bytes are saved only in each desktop's app data.
+Every application table has RLS enabled. `PUBLIC`, `anon` and `authenticated` receive no direct business-table grants. The trusted backend uses a separately controlled database role with access; see [SECURITY.md](SECURITY.md). The financial-events view is also revoked from direct clients. Migration 013 adds local account credentials and sessions. The historical Firebase UID column is retained for existing shops. New images synchronize between SQLite and Neon.
 
 ## Local SQLite
 
-`checkout.sqlite` retains encrypted online submissions and outcomes. `offline.sqlite` stores an encrypted catalog grant, encrypted receipts and queue payloads, a salted scrypt PIN verifier, lockout state, local batch quantities and event history. SQLite uses WAL and `synchronous=FULL`. Windows secure storage encrypts sensitive payloads; the whole SQLite file is not transparently encrypted. Back up consistently using the procedures in [DEPLOYMENT.md](DEPLOYMENT.md).
+The desktop stores shop data in `shop-<id>.sqlite` and uncertain checkout submissions in `checkout.sqlite`. On upgrade it checks the legacy `offline.sqlite` for pending receipts. See [Deployment and recovery](DEPLOYMENT.md).

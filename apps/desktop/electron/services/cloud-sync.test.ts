@@ -196,3 +196,29 @@ it('keeps local writes available during cloud delays and uploads them on the nex
     rmSync(dir, { recursive: true, force: true });
   }
 }, 30000);
+
+it('handles a dropped idle Neon socket after sleep without crashing the desktop process', async () => {
+  const cloud = await testDatabase('postgres');
+  const dir = mkdtempSync(join(tmpdir(), 'agripos-sleep-sync-'));
+  const local = new LocalDatabase(join(dir, 'shop.sqlite'));
+  let reportIdleError: ((error: unknown) => void) | undefined;
+  const syncedCloud = {
+    ...cloud,
+    onUnexpectedError: (handler: (error: unknown) => void) => {
+      reportIdleError = handler;
+      return () => {
+        reportIdleError = undefined;
+      };
+    },
+  };
+  const sync = new CloudSync(local, syncedCloud);
+  try {
+    reportIdleError?.(Object.assign(new Error('socket reset after sleep'), { code: 'ECONNRESET' }));
+    expect(sync.lastError).toContain('Cannot reach Neon');
+    await sync.close();
+    expect(reportIdleError).toBeUndefined();
+  } finally {
+    await local.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

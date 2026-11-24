@@ -1,11 +1,10 @@
 import { test, expect, _electron as electron } from '@playwright/test';
-import { mkdtemp } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 test('first-use setup and connected/disconnected indicators', async () => {
   const env: NodeJS.ProcessEnv = {
     ...process.env,
-    AGRIPOS_TEST_USER_DATA: await mkdtemp(resolve('.cache/connection-ui-')),
+    AGRIPOS_TEST_USER_DATA: test.info().outputPath('profile'),
   };
   delete env.ELECTRON_RUN_AS_NODE;
   delete env.AGRIPOS_API_URL;
@@ -42,7 +41,7 @@ test('first-use setup and connected/disconnected indicators', async () => {
     await page.reload();
     await expect(page.getByRole('button', { name: /Shop connected/ })).toBeVisible();
     await expect(page.getByRole('dialog')).toBeHidden();
-    await page.screenshot({ path: resolve('.cache/connection-connected.png') });
+    await page.screenshot({ path: test.info().outputPath('connection-connected.png') });
     await app.evaluate(({ ipcMain }) => {
       ipcMain.removeHandler('backup:status');
       ipcMain.handle('backup:status', () => ({

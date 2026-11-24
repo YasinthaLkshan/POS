@@ -8,7 +8,7 @@ files:
 extraResources:
   - from: resources/logo.jpeg
     to: branding/logo.jpeg
-  - from: ../../supabase/migrations
+  - from: ../../migrations
     to: migrations
 asar: true
 asarUnpack:

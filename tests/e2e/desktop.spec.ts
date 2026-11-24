@@ -1,8 +1,8 @@
 ﻿import { test, expect, _electron as electron } from '@playwright/test';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 test('desktop login → product → purchase receipt → sale → receipt → stock and report', async () => {
-  const userData = await mkdtemp(resolve('.cache/e2e-profile-'));
+  const userData = test.info().outputPath('profile');
   const launchEnv = { ...process.env };
   delete launchEnv.ELECTRON_RUN_AS_NODE;
   const launch = () =>
@@ -27,7 +27,7 @@ test('desktop login → product → purchase receipt → sale → receipt → st
     await expect(page.getByRole('heading', { name: 'Good to see you, Test.' })).toBeVisible();
     await page.getByRole('link', { name: 'Cloud sync', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Neon cloud' })).toBeVisible();
-    await page.screenshot({ path: resolve('.cache/sync-layout.png') });
+    await page.screenshot({ path: test.info().outputPath('sync-layout.png') });
     await page.getByRole('link', { name: 'Products', exact: true }).click();
     await page.getByRole('button', { name: 'Add category' }).click();
     await page.getByLabel('Category name').fill('Seeds');
@@ -35,13 +35,18 @@ test('desktop login → product → purchase receipt → sale → receipt → st
     await page.getByRole('button', { name: 'Save changes', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeHidden();
     await page.getByRole('button', { name: 'Add product', exact: true }).click();
+    await page.getByLabel('Product name').fill('Unsaved product');
+    await page.getByRole('button', { name: 'Close form' }).click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await page.getByRole('button', { name: 'Add product', exact: true }).click();
+    await expect(page.getByLabel('Product name')).toHaveValue('');
     await page.getByLabel('Product name').fill('Tomato seeds');
     await expect(page.getByLabel('Product code', { exact: false })).toBeHidden();
     await page.getByLabel(/^Category \*/).selectOption({ label: 'Seeds' });
     await page.getByLabel('Purchase price (LKR)').fill('100');
     await page.getByLabel('Selling price (LKR)').fill('150');
     await expect(page.getByLabel('Low-stock threshold')).toBeHidden();
-    await page.getByRole('dialog').screenshot({ path: resolve('.cache/product-simple.png') });
+    await page.getByRole('dialog').screenshot({ path: test.info().outputPath('product-simple.png') });
     await page.getByRole('button', { name: 'Save changes', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeHidden();
     await expect(page.getByText('Tomato seeds', { exact: true })).toBeVisible();
@@ -87,10 +92,14 @@ test('desktop login → product → purchase receipt → sale → receipt → st
     await expect(page.getByRole('cell', { name: '4 piece', exact: true })).toBeVisible();
     await page.getByRole('link', { name: 'Reports', exact: true }).click();
     await expect(page.getByRole('cell', { name: /150/ }).first()).toBeVisible();
+    await page.getByRole('button', { name: 'Notifications', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'View records' }).first()).toBeVisible();
+    await page.screenshot({ path: test.info().outputPath('notifications.png'), fullPage: true });
     await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
-    await page.screenshot({ path: '.cache/dashboard.png', fullPage: true });
+    await page.screenshot({ path: test.info().outputPath('dashboard.png'), fullPage: true });
     await page.getByRole('button', { name: 'Toggle theme' }).click();
-    await page.screenshot({ path: '.cache/dashboard-dark.png', fullPage: true });
+    await page.screenshot({ path: test.info().outputPath('dashboard-dark.png'), fullPage: true });
     // Lose the server acknowledgment AFTER commit; the SQLite journal must survive a restart.
     await app.evaluate(() => {
       const original = globalThis.fetch;

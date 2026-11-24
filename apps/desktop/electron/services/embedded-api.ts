@@ -21,7 +21,7 @@ export interface EmbeddedApi {
 function migrationDirectory() {
   return app.isPackaged
     ? join(process.resourcesPath, 'migrations')
-    : resolve(app.getAppPath(), '../../supabase/migrations');
+    : resolve(app.getAppPath(), '../../migrations');
 }
 
 export async function startEmbeddedApi(input: {

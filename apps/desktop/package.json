@@ -1,6 +1,6 @@
 {
   "name": "@agripos/desktop",
-  "version": "0.7.6",
+  "version": "0.7.8",
   "private": true,
   "description": "AgriPOS agricultural retail desktop application",
   "author": "AgriPOS",
@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@agripos/shared": "*",
-    "@agripos/ui": "*",
+    "@radix-ui/react-dialog": "^1.1.15",
     "@hookform/resolvers": "^5.2.2",
     "@tanstack/react-query": "^5.90.0",
     "better-sqlite3": "^13.0.3",

@@ -936,6 +936,8 @@ tbody tr:hover {
 }
 .form-actions {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
   border-top: 1px solid var(--border);
@@ -1515,6 +1517,99 @@ tbody tr:hover {
   min-width: 160px;
   padding: 8px 10px;
 }
+.notifications-toolbar {
+  display: flex;
+  align-items: end;
+  gap: 18px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+.notification-filter {
+  width: min(320px, 100%);
+}
+.notification-filter > span {
+  margin-bottom: 7px;
+}
+.notification-unread {
+  flex-direction: row;
+  align-items: center;
+  min-height: 42px;
+  gap: 9px;
+  white-space: nowrap;
+}
+.notification-unread input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+.notification-card {
+  padding: 24px 30px;
+  margin: 0 0 16px;
+  border-left: 4px solid var(--border);
+}
+.notification-card.danger {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+  color: var(--text);
+}
+.notification-card.warning {
+  background: var(--warning-bg);
+  border-color: var(--warning);
+  color: var(--text);
+}
+.notification-card.info {
+  background: var(--soft);
+  border-color: var(--primary);
+  color: var(--text);
+}
+.notification-card.success {
+  border-color: var(--primary);
+}
+.notification-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.notification-card h2,
+.notification-card-body {
+  margin: 0;
+}
+.notification-card h2 {
+  font-size: 17px;
+}
+.notification-card-body {
+  margin-top: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.notification-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 22px;
+}
+.notification-card time {
+  color: var(--muted);
+  font-size: 12px;
+}
+@media (max-width: 650px) {
+  .notifications-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .notification-card {
+    padding: 20px;
+  }
+  .notification-card-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .notification-card-footer .btn {
+    width: 100%;
+  }
+}
 .stat-card.clickable {
   cursor: pointer;
   text-align: left;
@@ -1808,8 +1903,13 @@ th.cell-end .table-sort {
   display: none;
 }
 .product-more {
-  margin-top: 18px;
+  margin-right: auto;
   padding: 8px 0;
+}
+@media (max-width: 520px) {
+  .form-actions .product-more {
+    flex-basis: 100%;
+  }
 }
 .dilshan-logo {
   background: white;

@@ -12,7 +12,7 @@ Amounts are integer cents, quantities integer thousandths, rates basis points. S
 | `GET /products/:id`                                                       | Product lookup.                                                                                      |
 | `POST /products`, `PATCH /products/:id`                                   | Create/edit/archive a product.                                                                       |
 | `POST /products/import`                                                   | `{operationId,csv}`; atomic import of up to 200 new products.                                        |
-| `GET/POST /products/:id/image`                                            | Local desktop image marker; POST accepts `{local:true}` and never transfers image bytes.             |
+| `GET/POST /products/:id/image`                                            | GET returns a PNG data URL. POST accepts base64 PNG in `png` or a legacy local image marker.             |
 | `GET/POST /categories`                                                    | Read/create categories.                                                                              |
 | `GET/POST /suppliers`, `/customers`                                       | Search/list and create contacts.                                                                     |
 | `PATCH /suppliers/:id`, `/customers/:id`                                  | Edit contacts; credit-limit changes require permission.                                              |

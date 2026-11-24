@@ -31,7 +31,7 @@ Dark mode uses charcoal-green surfaces and light text with the same semantic sta
 - `Badge`: compact textual status with success, danger, warning or neutral styling.
 - `ProductImage`: restricted PNG data URLs with a catalog icon fallback.
 
-The repository includes a shadcn-compatible component configuration and a small Radix-based UI package; it does not contain an unmodified full shadcn component catalog. Forms and tables are application-specific reusable components.
+Desktop forms and modals use Radix Dialog. Shared form and table components live in `apps/desktop/src/components`.
 
 Use integer money/quantity values in data contracts and shared formatting functions in the UI. Every action must have a real handler; failed API writes remain visible. Offline mode must visibly identify cached stock and pending synchronization. Destructive accounting changes use reasoned, auditable compensating operations rather than deletion.
 
