@@ -1,4 +1,4 @@
-﻿import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+﻿import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import brandLogo from '../../resources/logo.jpeg';
 import {
   LayoutDashboard,
@@ -72,6 +72,7 @@ const sections: { label: string | null; links: NavLinkItem[] }[] = [
   },
 ];
 const links = sections.flatMap((s) => s.links);
+const dailyPaths = ['/pos', '/sales', '/cash-sessions'];
 const offlinePaths = ['/pos', '/sales', '/products', '/settings', '/sync'];
 export function Shell() {
   const { user, theme, setTheme, setUser } = useSession(),
@@ -80,10 +81,11 @@ export function Shell() {
   const navigate = useNavigate(),
     location = useLocation(),
     cache = useQueryClient();
+  const daily = user?.role === 'daily_sales';
   const shop = useData<{ name: string }>('/settings');
   const health = useData('/auth/me');
   const logo = useData<{ dataUrl: string | null }>('/settings/logo', !user?.offline);
-  const notices = useData<Notification[]>('/notifications', !user?.offline);
+  const notices = useData<Notification[]>('/notifications', !user?.offline && !daily);
   const syncState = useQuery({
     queryKey: ['offline-status'],
     queryFn: () => window.desktop.offlineStatus(),
@@ -95,7 +97,11 @@ export function Shell() {
     refetchInterval: 10000,
     retry: 1,
   });
-  const title = links.find((l) => l.path === location.pathname)?.label ?? 'Sales history';
+  if (daily && !dailyPaths.includes(location.pathname)) return <Navigate to="/pos" replace />;
+  const title =
+    daily && location.pathname === '/sales'
+      ? "Today's sales"
+      : (links.find((l) => l.path === location.pathname)?.label ?? 'Sales history');
   return (
     <div className={`app-shell ${collapsed ? 'collapsed' : ''}`}>
       <aside className="sidebar">
@@ -125,12 +131,13 @@ export function Shell() {
           <div className="branch-label">
             <span className="status-dot" />
             {shop.data?.name ?? 'Your shop'}
-            <small>RETAIL WORKSPACE</small>
+            <small>{user?.branch ?? 'Kuruwita'}</small>
           </div>
         )}
         <nav>
           {sections.map((section) => {
             const visible = section.links
+              .filter((l) => !daily || dailyPaths.includes(l.path))
               .filter((l) => !user?.offline || offlinePaths.includes(l.path))
               .filter((l) => !l.permission || user?.permissions.includes(l.permission));
             if (!visible.length) return null;
@@ -145,7 +152,9 @@ export function Shell() {
                     title={collapsed ? label : undefined}
                   >
                     <Icon size={19} />
-                    {!collapsed && <span>{label}</span>}
+                    {!collapsed && (
+                      <span>{daily && path === '/sales' ? "Today's sales" : label}</span>
+                    )}
                   </NavLink>
                 ))}
               </div>
@@ -163,7 +172,7 @@ export function Shell() {
               </>
             )}
           </button>
-          {!collapsed && <small>AgriPOS · v0.7.8</small>}
+          {!collapsed && <small>AgriPOS · v0.7.9</small>}
         </div>
       </aside>
       <div className="workspace">
@@ -171,22 +180,24 @@ export function Shell() {
           <div className="breadcrumb">
             Workspace <span>/</span> <strong>{title}</strong>
           </div>
-          <form
-            className="header-search"
-            onSubmit={(e) => {
-              e.preventDefault();
-              navigate(`/products?q=${encodeURIComponent(search)}`);
-            }}
-          >
-            <Search size={16} />
-            <input
-              aria-label="Global product search"
-              placeholder="Search products, SKUs…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <kbd>↵</kbd>
-          </form>
+          {!daily && (
+            <form
+              className="header-search"
+              onSubmit={(e) => {
+                e.preventDefault();
+                navigate(`/products?q=${encodeURIComponent(search)}`);
+              }}
+            >
+              <Search size={16} />
+              <input
+                aria-label="Global product search"
+                placeholder="Search products, SKUs…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <kbd>↵</kbd>
+            </form>
+          )}
           <div className={`connection ${health.error ? 'error-text' : ''}`}>
             {health.error ? <AlertTriangle size={15} /> : <Cloud size={15} />}
             <span>
@@ -201,7 +212,7 @@ export function Shell() {
                       : 'Shop ready'}
             </span>
           </div>
-          {!!syncState.data?.operations.length && (
+          {!daily && !!syncState.data?.operations.length && (
             <button
               className={`text-btn ${syncState.data.operations.some((o) => o.state === 'failed' || o.state === 'conflict') ? 'error-text' : ''}`}
               onClick={() => navigate('/sync')}
@@ -218,7 +229,7 @@ export function Shell() {
             {theme === 'dark' ? <Sun size={19} /> : <Moon size={19} />}
           </button>
           <div className="profile">
-            {!user?.offline && (
+            {!daily && !user?.offline && (
               <button
                 className="icon-btn"
                 aria-label="Notifications"

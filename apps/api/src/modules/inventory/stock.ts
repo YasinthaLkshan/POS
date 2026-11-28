@@ -26,7 +26,7 @@ export async function receiveStock(db: Database, actor: Actor, input: unknown) {
     );
     const batch = (
       await tx.query<{ id: string }>(
-        'INSERT INTO batches(shop_id,product_id,batch_number,expiry_date,quantity,unit_cost,supplier_id,received_quantity) VALUES($1,$2,$3,$4,$5,$6,$7,$5) RETURNING id',
+        'INSERT INTO batches(shop_id,product_id,batch_number,expiry_date,quantity,unit_cost,supplier_id,received_quantity,branch) VALUES($1,$2,$3,$4,$5,$6,$7,$5,$8) RETURNING id',
         [
           actor.shopId,
           p.productId,
@@ -35,6 +35,7 @@ export async function receiveStock(db: Database, actor: Actor, input: unknown) {
           p.quantity,
           p.unitCost ?? product.purchase_price,
           p.supplierId,
+          actor.branch ?? 'Kuruwita',
         ],
       )
     )[0]!;
@@ -87,8 +88,8 @@ export async function convertStock(db: Database, actor: Actor, input: unknown) {
       unit_cost: number;
       expiry_date: string | null;
     }>(
-      "SELECT id,quantity,unit_cost,expiry_date::text expiry_date FROM batches WHERE shop_id=$1 AND product_id=$2 AND quantity>0 AND (expiry_date IS NULL OR expiry_date>=(now() AT TIME ZONE 'Asia/Colombo')::date) ORDER BY expiry_date NULLS LAST,created_at,id FOR UPDATE",
-      [actor.shopId, p.fromProductId],
+      "SELECT id,quantity,unit_cost,expiry_date::text expiry_date FROM batches WHERE shop_id=$1 AND product_id=$2 AND branch=$3 AND quantity>0 AND (expiry_date IS NULL OR expiry_date>=(now() AT TIME ZONE 'Asia/Colombo')::date) ORDER BY expiry_date NULLS LAST,created_at,id FOR UPDATE",
+      [actor.shopId, p.fromProductId, actor.branch ?? 'Kuruwita'],
     );
     let remaining = p.quantity,
       cost = 0,
@@ -111,8 +112,8 @@ export async function convertStock(db: Database, actor: Actor, input: unknown) {
     );
     const batch = (
       await tx.query<{ id: string }>(
-        'INSERT INTO batches(shop_id,product_id,batch_number,expiry_date,quantity,unit_cost,received_quantity) VALUES($1,$2,$3,$4,$5,$6,$5) RETURNING id',
-        [actor.shopId, p.toProductId, `CONV-${today()}`, expiry, p.resultingQuantity, unitCost],
+        'INSERT INTO batches(shop_id,product_id,batch_number,expiry_date,quantity,unit_cost,received_quantity,branch) VALUES($1,$2,$3,$4,$5,$6,$5,$7) RETURNING id',
+        [actor.shopId, p.toProductId, `CONV-${today()}`, expiry, p.resultingQuantity, unitCost, actor.branch ?? 'Kuruwita'],
       )
     )[0]!;
     await tx.query(

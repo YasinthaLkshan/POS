@@ -13,6 +13,7 @@ import {
   settingsSchema,
   date,
   type Actor,
+  type Branch,
   reportKinds,
   customerKinds,
 } from '@agripos/shared';
@@ -65,7 +66,7 @@ import {
   saveDriver,
   saveFactory,
 } from './modules/drivers/service';
-export function createApp(db: Database, authenticate: Authenticate) {
+export function createApp(db: Database, authenticate: Authenticate, branch: Branch = 'Kuruwita') {
   const app = express(),
     log = pino({ enabled: process.env.NODE_ENV !== 'test' });
   app.disable('x-powered-by');
@@ -116,13 +117,31 @@ export function createApp(db: Database, authenticate: Authenticate) {
       if (req.path === '/auth/login') return next();
       const token = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
       assert(token, 401, 'UNAUTHORIZED', 'Sign in to continue');
-      res.locals.actor = await authenticate(token);
+      res.locals.actor = { ...await authenticate(token), branch };
       next();
     } catch (e) {
       next(e);
     }
   });
   const actor = (res: Response) => res.locals.actor as Actor;
+  const dailySalesRoutes = new Set([
+    'get /auth/me',
+    'get /permissions',
+    'post /auth/logout',
+    'post /auth/password',
+    'get /settings',
+    'get /settings/logo',
+    'get /products',
+    'get /products/:id/image',
+    'get /categories',
+    'get /sales',
+    'post /sales',
+    'get /sales/:id',
+    'get /sales/:id/receipt',
+    'get /cash-sessions',
+    'post /cash-sessions/open',
+    'post /cash-sessions/:id/close',
+  ]);
   const route = (
     method: 'get' | 'post' | 'patch',
     path: string,
@@ -131,6 +150,13 @@ export function createApp(db: Database, authenticate: Authenticate) {
   ) =>
     app[method](`/api/v1${path}`, async (req, res, next) => {
       try {
+        if (actor(res).role === 'daily_sales')
+          assert(
+            dailySalesRoutes.has(`${method} ${path}`),
+            403,
+            'FORBIDDEN',
+            'Daily sales access only',
+          );
         const data = await fn(req, res);
         res.status(status).json({ data });
       } catch (e) {
@@ -457,7 +483,7 @@ export function createApp(db: Database, authenticate: Authenticate) {
     requirePermission(a, 'sales.write');
     const p = pageSchema.parse(req.query);
     return db.query(
-      'SELECT id,invoice_number,customer_name,total,status,credit,created_at FROM sales WHERE shop_id=$1 AND (id::text ILIKE $2 OR invoice_number ILIKE $2 OR customer_name ILIKE $2) ORDER BY created_at DESC LIMIT $3 OFFSET $4',
+      `SELECT id,invoice_number,customer_name,total,status,credit,created_at FROM sales WHERE shop_id=$1 ${a.role === 'daily_sales' ? "AND (created_at AT TIME ZONE 'Asia/Colombo')::date=(now() AT TIME ZONE 'Asia/Colombo')::date" : ''} AND (id::text ILIKE $2 OR invoice_number ILIKE $2 OR customer_name ILIKE $2) ORDER BY created_at DESC LIMIT $3 OFFSET $4`,
       [a.shopId, `%${p.search}%`, p.limit, (p.page - 1) * p.limit],
     );
   });
@@ -515,7 +541,7 @@ export function createApp(db: Database, authenticate: Authenticate) {
     const a = actor(res);
     requirePermission(a, 'sales.write');
     return db.query(
-      'SELECT c.*,COALESCE((SELECT SUM(amount) FROM cash_movements m WHERE m.session_id=c.id),0)::bigint movements FROM cash_sessions c WHERE c.shop_id=$1 AND (c.opened_by=$2 OR $3) ORDER BY c.opened_at DESC,c.id LIMIT $4 OFFSET $5',
+      `SELECT c.*,COALESCE((SELECT SUM(amount) FROM cash_movements m WHERE m.session_id=c.id),0)::bigint movements FROM cash_sessions c WHERE c.shop_id=$1 AND (c.opened_by=$2 OR $3) ${a.role === 'daily_sales' ? "AND (c.closed_at IS NULL OR (c.closed_at AT TIME ZONE 'Asia/Colombo')::date=(now() AT TIME ZONE 'Asia/Colombo')::date)" : ''} ORDER BY c.opened_at DESC,c.id LIMIT $4 OFFSET $5`,
       [
         a.shopId,
         a.id,
@@ -632,7 +658,14 @@ export function createApp(db: Database, authenticate: Authenticate) {
     'get',
     '/settings',
     async (_req, res) =>
-      (await db.query('SELECT * FROM shops WHERE id=$1', [actor(res).shopId]))[0],
+      (
+        await db.query(
+          actor(res).role === 'daily_sales'
+            ? 'SELECT name,address,phone,receipt_footer,require_cash_session FROM shops WHERE id=$1'
+            : 'SELECT * FROM shops WHERE id=$1',
+          [actor(res).shopId],
+        )
+      )[0],
   );
   route('patch', '/settings', async (req, res) => {
     const a = actor(res);

@@ -1,3 +1,4 @@
+import { branches, type Branch } from '@agripos/shared';
 import { FormDialog } from './FormDialog';
 import { toast } from 'sonner';
 export function ShopConnectionDialog({
@@ -11,7 +12,9 @@ export function ShopConnectionDialog({
     <FormDialog
       title="Connect your shop"
       description="Enter your Neon cloud connection once. AgriPOS saves your shop on this computer automatically, so the same username, password and features work without internet. For a new shop only, choose an initial administrator password."
+      initial={{branch:'Kuruwita'}}
       fields={[
+        {name:'branch',label:'Stock location for this till',type:'select',required:true,options:branches.map(value=>({value,label:value}))},
         {
           name: 'databaseUrl',
           label: 'Neon cloud database URL',
@@ -30,6 +33,7 @@ export function ShopConnectionDialog({
       onClose={onClose}
       onSave={async (values) => {
         await window.desktop.configure({
+          branch: values.branch as Branch,
           databaseUrl: values.databaseUrl!,
           ...(values.adminPassword ? { adminPassword: values.adminPassword } : {}),
           ...(values.shopName ? { shopName: values.shopName } : {}),

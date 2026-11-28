@@ -16,7 +16,7 @@ export async function returnToSupplier(db: Database, actor: Actor, input: unknow
         supplier_id: string | null;
         purchase_id: string;
         received_quantity: number | null;
-      }>('SELECT * FROM batches WHERE shop_id=$1 AND id=$2 FOR UPDATE', [actor.shopId, p.batchId])
+      }>('SELECT * FROM batches WHERE shop_id=$1 AND id=$2 AND branch=$3 FOR UPDATE', [actor.shopId, p.batchId, actor.branch ?? 'Kuruwita'])
     )[0];
     assert(
       batch?.supplier_id && batch.received_quantity,

@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Printer, FileDown, Undo2 } from 'lucide-react';
 import { money, quantity, decimalToInteger } from '@agripos/shared';
 import { api, useData, usePagedData, displayDate, type Sale } from '../services/api';
-import { useAllowed } from '../stores/session';
+import { useAllowed, useSession } from '../stores/session';
 import { Table } from '../components/Table';
 import { FormDialog } from '../components/FormDialog';
 import { PageHeading, QueryState, Badge, RecordPages } from '../components/common';
@@ -52,6 +52,7 @@ interface Receipt extends Sale {
   payments: { method: string; amount: number }[];
 }
 export function Sales() {
+  const daily = useSession((s) => s.user?.role === 'daily_sales');
   const [params, setParams] = useSearchParams(),
     selected = params.get('id'),
     query = usePagedData<Sale>('/sales'),
@@ -87,8 +88,12 @@ export function Sales() {
   return (
     <>
       <PageHeading
-        title="Sales history"
-        description="Every transaction, recorded. View receipts and process authorized returns."
+        title={daily ? "Today's sales" : 'Sales history'}
+        description={
+          daily
+            ? "View and print today's receipts."
+            : 'Every transaction, recorded. View receipts and process authorized returns.'
+        }
       />
       {selected && (
         <section className="panel receipt-preview">
@@ -112,15 +117,19 @@ export function Sales() {
                             ? 'Lorry driver'
                             : 'Credit customer'}
                           :{' '}
-                          <Link
-                            to={
-                              receipt.data.customer.kind === 'driver'
-                                ? `/drivers?id=${receipt.data.customer.id}`
-                                : `/credit?customer=${receipt.data.customer.id}`
-                            }
-                          >
-                            {receipt.data.customer.name}
-                          </Link>
+                          {daily ? (
+                            receipt.data.customer.name
+                          ) : (
+                            <Link
+                              to={
+                                receipt.data.customer.kind === 'driver'
+                                  ? `/drivers?id=${receipt.data.customer.id}`
+                                  : `/credit?customer=${receipt.data.customer.id}`
+                              }
+                            >
+                              {receipt.data.customer.name}
+                            </Link>
+                          )}
                           {receipt.data.customer.driver_code
                             ? ` (${receipt.data.customer.driver_code})`
                             : ''}

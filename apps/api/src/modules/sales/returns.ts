@@ -14,8 +14,8 @@ export async function returnSale(db: Database, actor: Actor, saleId: string, inp
   return command(db, actor, p.operationId, 'return', { saleId, ...p }, async (tx) => {
     const sale = (
       await tx.query<{ id: string; status: string; credit: number; customer_id: string | null }>(
-        'SELECT * FROM sales WHERE shop_id=$1 AND id=$2 FOR UPDATE',
-        [actor.shopId, saleId],
+        'SELECT * FROM sales WHERE shop_id=$1 AND id=$2 AND branch=$3 FOR UPDATE',
+        [actor.shopId, saleId, actor.branch ?? 'Kuruwita'],
       )
     )[0];
     assert(sale, 404, 'NOT_FOUND', 'Sale not found');

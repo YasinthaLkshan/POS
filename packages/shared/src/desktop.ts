@@ -1,3 +1,4 @@
+import { branches } from './permissions';
 import { z } from 'zod';
 import type { SaleInput } from './schemas';
 export const postgresUrl = z
@@ -12,6 +13,7 @@ export type ComputerRole = (typeof computerRoles)[number];
 export const connectionSchema = z
   .object({
     databaseUrl: postgresUrl,
+    branch: z.enum(branches).default('Kuruwita'),
     role: z.enum(computerRoles).default('till'),
     backupUrl: postgresUrl.optional(),
     adminPassword: z.string().min(12).max(256).optional(),

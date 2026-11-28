@@ -21,8 +21,8 @@ export async function stocktake(db: Database, actor: Actor, input: unknown) {
     for (const line of [...p.lines].sort((a, b) => a.batchId.localeCompare(b.batchId))) {
       const batch = (
         await tx.query<{ quantity: number }>(
-          'SELECT quantity FROM batches WHERE shop_id=$1 AND id=$2 FOR UPDATE',
-          [actor.shopId, line.batchId],
+          'SELECT quantity FROM batches WHERE shop_id=$1 AND id=$2 AND branch=$3 FOR UPDATE',
+          [actor.shopId, line.batchId, actor.branch ?? 'Kuruwita'],
         )
       )[0];
       assert(batch, 404, 'NOT_FOUND', 'Batch not found');

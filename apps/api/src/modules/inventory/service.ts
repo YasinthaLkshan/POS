@@ -134,7 +134,7 @@ export async function receivePurchase(
       );
       const batch = (
         await tx.query(
-          'INSERT INTO batches(shop_id,product_id,batch_number,expiry_date,quantity,unit_cost) VALUES($1,$2,$3,$4,$5,$6) RETURNING id',
+          'INSERT INTO batches(shop_id,product_id,batch_number,expiry_date,quantity,unit_cost,branch) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id',
           [
             actor.shopId,
             line.product_id,
@@ -142,6 +142,7 @@ export async function receivePurchase(
             received.expiryDate,
             received.quantity,
             line.unit_cost,
+            actor.branch ?? 'Kuruwita',
           ],
         )
       )[0]!;
@@ -205,8 +206,8 @@ export async function adjustStock(db: Database, actor: Actor, input: unknown) {
   return command(db, actor, p.operationId, 'adjust', p, async (tx) => {
     const batch = (
       await tx.query<{ quantity: number }>(
-        'SELECT quantity FROM batches WHERE shop_id=$1 AND id=$2 FOR UPDATE',
-        [actor.shopId, p.batchId],
+        'SELECT quantity FROM batches WHERE shop_id=$1 AND id=$2 AND branch=$3 FOR UPDATE',
+        [actor.shopId, p.batchId, actor.branch ?? 'Kuruwita'],
       )
     )[0];
     assert(batch, 404, 'NOT_FOUND', 'Batch not found');

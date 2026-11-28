@@ -56,7 +56,7 @@ export async function saleDetails(db: Database, actor: Actor, saleId: string) {
   requirePermission(actor, 'sales.write');
   const sale = (
     await db.query(
-      'SELECT s.*,st.name cashier FROM sales s JOIN staff st ON st.id=s.cashier_id WHERE s.shop_id=$1 AND s.id=$2',
+      `SELECT s.*,st.name cashier FROM sales s JOIN staff st ON st.id=s.cashier_id WHERE s.shop_id=$1 AND s.id=$2 ${actor.role === 'daily_sales' ? "AND (s.created_at AT TIME ZONE 'Asia/Colombo')::date=(now() AT TIME ZONE 'Asia/Colombo')::date" : ''}`,
       [actor.shopId, saleId],
     )
   )[0];

@@ -185,9 +185,19 @@
         "type": "text",
         "nullable": false,
         "default": "''::text"
+      },
+      {
+        "name": "branch",
+        "type": "text",
+        "nullable": false,
+        "default": "'Kuruwita'::text"
       }
     ],
     "constraints": [
+      {
+        "kind": "c",
+        "sql": "CHECK ((branch = ANY (ARRAY['Kuruwita'::text, 'Parakaduwa'::text])))"
+      },
       {
         "kind": "p",
         "sql": "PRIMARY KEY (id)"
@@ -224,6 +234,9 @@
     "indexes": [
       {
         "sql": "CREATE INDEX batches_fefo ON public.batches USING btree (shop_id, product_id, expiry_date, created_at)"
+      },
+      {
+        "sql": "CREATE INDEX batches_branch_stock ON public.batches USING btree (shop_id, branch, product_id)"
       }
     ]
   },
@@ -2774,6 +2787,12 @@
         "type": "text",
         "nullable": false,
         "default": "''::text"
+      },
+      {
+        "name": "branch",
+        "type": "text",
+        "nullable": false,
+        "default": "'Kuruwita'::text"
       }
     ],
     "constraints": [
@@ -2784,6 +2803,10 @@
       {
         "kind": "c",
         "sql": "CHECK ((bill_discount >= 0))"
+      },
+      {
+        "kind": "c",
+        "sql": "CHECK ((branch = ANY (ARRAY['Kuruwita'::text, 'Parakaduwa'::text])))"
       },
       {
         "kind": "c",
@@ -3089,7 +3112,7 @@
       },
       {
         "kind": "c",
-        "sql": "CHECK ((role = ANY (ARRAY['administrator'::text, 'manager'::text, 'cashier'::text, 'inventory'::text])))"
+        "sql": "CHECK ((role = ANY (ARRAY['administrator'::text, 'manager'::text, 'cashier'::text, 'inventory'::text, 'daily_sales'::text])))"
       },
       {
         "kind": "f",

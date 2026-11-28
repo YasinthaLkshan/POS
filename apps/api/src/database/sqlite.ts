@@ -82,9 +82,30 @@ export class LocalDatabase implements Database {
           `"${c.name}" ${['int8', 'int4', 'bool'].includes(c.type) ? 'INTEGER' : c.type === 'bytea' ? 'BLOB' : 'TEXT'}${c.nullable ? '' : ' NOT NULL'}${c.default === null ? '' : ` DEFAULT (${sqliteSql(c.default)})`}`,
       );
       const constraints = table.constraints.map((c) => sqliteSql(c.sql));
-      this.raw.exec(
-        `CREATE TABLE IF NOT EXISTS "${table.name}" (${[...columns, ...constraints].join(',')})`,
-      );
+      const definition = [...columns, ...constraints].join(',');
+      if (table.name === 'staff') {
+        const prior = this.raw
+          .prepare("SELECT sql FROM sqlite_schema WHERE name='staff' AND type='table'")
+          .get() as { sql: string } | undefined;
+        if (prior && !prior.sql.includes("'daily_sales'")) {
+          this.raw.pragma('foreign_keys = OFF');
+          try {
+            this.raw.transaction(() => {
+              const names = table.columns.map((c) => `"${c.name}"`).join(',');
+              this.raw.exec(`CREATE TABLE staff_upgrade (${definition});
+                INSERT INTO staff_upgrade (${names}) SELECT ${names} FROM staff;
+                DROP TABLE staff;
+                ALTER TABLE staff_upgrade RENAME TO staff`);
+              for (const index of table.indexes) this.raw.exec(sqliteSql(index.sql));
+              if ((this.raw.pragma('foreign_key_check') as unknown[]).length)
+                throw new Error('Staff schema upgrade failed its relationship checks');
+            })();
+          } finally {
+            this.raw.pragma('foreign_keys = ON');
+          }
+        }
+      }
+      this.raw.exec(`CREATE TABLE IF NOT EXISTS "${table.name}" (${definition})`);
       for (const index of table.indexes)
         this.raw.exec(
           sqliteSql(index.sql).replace(/CREATE (UNIQUE )?INDEX /, 'CREATE $1INDEX IF NOT EXISTS '),

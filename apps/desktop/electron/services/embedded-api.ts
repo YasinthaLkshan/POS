@@ -1,3 +1,4 @@
+import type { Branch } from '@agripos/shared';
 import { app } from 'electron';
 import { resolve, join } from 'node:path';
 import type { Server } from 'node:http';
@@ -27,6 +28,7 @@ function migrationDirectory() {
 export async function startEmbeddedApi(input: {
   databaseUrl: string;
   signingKey: string;
+  branch?: Branch;
   createDatabase?: boolean;
   adminPassword?: string;
   shopName?: string;
@@ -39,7 +41,9 @@ export async function startEmbeddedApi(input: {
     .slice(0, 20);
   const db = new LocalDatabase(join(app.getPath('userData'), `shop-${name}.sqlite`));
   const cloud = postgres(input.databaseUrl, 3000);
-  const sync = new CloudSync(db, cloud);
+  const sync = new CloudSync(db, cloud, async () => {
+    await runMigrations(cloud, migrationDirectory());
+  });
   let server: Server | undefined;
   try {
     if (!sync.initialized) {
@@ -67,7 +71,7 @@ export async function startEmbeddedApi(input: {
       await sync.sync();
     } else void sync.sync().catch(() => undefined);
     process.env.OFFLINE_SIGNING_KEY = input.signingKey;
-    server = createApp(db, passwordAuthentication(db)).listen(4000, '127.0.0.1');
+    server = createApp(db, passwordAuthentication(db), input.branch).listen(4000, '127.0.0.1');
     await new Promise<void>((done, fail) => {
       server!.once('listening', done);
       server!.once('error', fail);

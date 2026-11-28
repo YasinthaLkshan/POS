@@ -88,6 +88,7 @@ export class CloudSync {
   constructor(
     readonly local: LocalDatabase,
     private cloud: Database,
+    private prepareCloud?: () => Promise<void>,
   ) {
     this.lastSyncedAt = this.get('lastSyncedAt');
     this.stopListening = cloud.onUnexpectedError?.((error) => {
@@ -241,6 +242,10 @@ export class CloudSync {
         this.offline ? null : { baseline: this.get('baseline'), local: this.localSnapshot() },
       );
       if (!captured) return;
+      if (this.prepareCloud) {
+        await this.prepareCloud();
+        this.prepareCloud = undefined;
+      }
       const { baseline, local } = captured;
       const remote = await this.cloud.transaction(async (tx) => {
         await tx.query('SELECT pg_advisory_xact_lock(4815162344)');

@@ -11,6 +11,7 @@ The API stores salted scrypt password hashes and hashes random session tokens. T
 | Administrator | Full business and configuration access                                                          |
 | Manager       | Daily operations, pricing, refunds and reports; no staff/settings administration                |
 | Cashier       | Catalog, sales, customers and repayments; no cost/profit/discount/refund access                 |
+| Daily sales   | Walk-in checkout, today's sales and receipts, and the employee's own active or daily cash registers |
 | Inventory     | Catalog metadata, cost, inventory and purchasing; no selling-price changes or financial reports |
 
 ## Database access

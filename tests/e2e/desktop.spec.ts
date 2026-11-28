@@ -181,6 +181,26 @@ test('desktop login → product → purchase receipt → sale → receipt → st
     );
     expect(printed.cancelled).toBe(false);
     expect((await readFile(pdfPath)).subarray(0, 5).toString()).toBe('%PDF-');
+    await page.getByRole('link', { name: 'Staff & roles' }).click();
+    await page.getByRole('button', { name: 'Add staff account' }).click();
+    await page.getByLabel('Employee name').fill('Daily staff');
+    await page.getByLabel('Username').fill('test_till');
+    await page.getByLabel('Initial password').fill('Restricted-test-only');
+    await page.getByLabel('Role', { exact: false }).selectOption('daily_sales');
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await page.getByRole('button', { name: 'Sign out' }).click();
+    await page.getByLabel('Username').fill('test_till');
+    await page.getByLabel('Password', { exact: true }).fill('Restricted-test-only');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Point of sale' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Products', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Sales history' })).toHaveCount(0);
+    await page.getByRole('button', { name: /Seeds Tomato seeds/ }).click();
+    await page.getByRole('button', { name: 'Take payment' }).click();
+    await page.getByRole('button', { name: 'Confirm sale', exact: true }).click();
+    await expect(page.getByRole('heading', { name: "Today's sales" })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Print receipt', exact: true })).toBeVisible();
     expect(pageErrors).toEqual([]);
   } finally {
     await app.close();

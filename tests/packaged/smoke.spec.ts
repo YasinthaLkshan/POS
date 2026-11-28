@@ -34,7 +34,7 @@ test('packaged Windows executable starts with a sandbox and loads native SQLite'
       await page.getByRole('link', { name: 'Cloud sync', exact: true }).click();
     await expect(page.getByRole('checkbox', { name: 'Work offline', exact: true })).toBeVisible();
     const info = await page.evaluate(() => window.desktop.info());
-    expect(info.version).toBe('0.7.8');
+    expect(info.version).toBe('0.7.9');
     expect(info.contextIsolated).toBe(true);
     expect(info.sandboxed).toBe(true);
     expect(await page.evaluate(() => typeof Reflect.get(window, 'require'))).toBe('undefined');

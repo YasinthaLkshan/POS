@@ -70,13 +70,16 @@ const centsOf = (value: string) => {
 
 export function POS() {
   const [params, setParams] = useSearchParams();
+  const daily = useSession((s) => s.user?.role === 'daily_sales');
   const offline = useSession((s) => s.user?.offline);
   const [mode, setMode] = useState<Mode>(
-    params.get('driver') || params.get('type') === 'driver'
-      ? 'driver'
-      : params.get('type') === 'credit'
-        ? 'credit'
-        : 'walk_in',
+    daily
+      ? 'walk_in'
+      : params.get('driver') || params.get('type') === 'driver'
+        ? 'driver'
+        : params.get('type') === 'credit'
+          ? 'credit'
+          : 'walk_in',
   );
   const [driver, setDriver] = useState<SelectedDriver | null>(null),
     [driverSearch, setDriverSearch] = useState('');
@@ -94,7 +97,10 @@ export function POS() {
     navigate = useNavigate(),
     cache = useQueryClient();
   const settings = useData<ShopSettings>('/settings');
-  const parked = useData<{ id: string; label: string; status: string }[]>('/sales/park', !offline);
+  const parked = useData<{ id: string; label: string; status: string }[]>(
+    '/sales/park',
+    !offline && !daily,
+  );
   const debouncedSearch = useDebounced(search, 150);
   const products = useData<{ items: Product[] }>(
     `/products?limit=100&search=${encodeURIComponent(debouncedSearch)}`,
@@ -106,7 +112,7 @@ export function POS() {
     mode === 'driver' && !driver && !offline,
   );
   const canDiscount = useAllowed('discount.approve');
-  const driverParam = params.get('driver');
+  const driverParam = daily ? null : params.get('driver');
   useEffect(() => {
     if (!driverParam) return;
     api<CreditProfileData>(`/customers/${driverParam}/credit-profile`)
@@ -252,7 +258,7 @@ export function POS() {
         action={
           <button className="btn secondary" onClick={() => navigate('/sales')}>
             <Receipt size={16} />
-            Sales history
+            {daily ? "Today's sales" : 'Sales history'}
           </button>
         }
       />
@@ -426,16 +432,18 @@ export function POS() {
                   ['driver', 'Lorry driver'],
                   ['credit', 'Credit customer'],
                 ] as const
-              ).map(([value, label]) => (
-                <button
-                  key={value}
-                  className={mode === value ? 'selected' : ''}
-                  disabled={!!pending || (!!offline && value !== 'walk_in')}
-                  onClick={() => switchMode(value)}
-                >
-                  {label}
-                </button>
-              ))}
+              )
+                .filter(([value]) => !daily || value === 'walk_in')
+                .map(([value, label]) => (
+                  <button
+                    key={value}
+                    className={mode === value ? 'selected' : ''}
+                    disabled={!!pending || (!!offline && value !== 'walk_in')}
+                    onClick={() => switchMode(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
             </div>
             {mode === 'driver' &&
               (driver ? (
@@ -679,7 +687,7 @@ export function POS() {
               >
                 New sale / clear cart
               </button>
-              {!offline && (
+              {!offline && !daily && (
                 <button
                   className="btn secondary"
                   id="park-button"

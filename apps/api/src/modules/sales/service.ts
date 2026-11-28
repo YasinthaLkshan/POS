@@ -54,6 +54,13 @@ export async function createSale(
 ) {
   requirePermission(actor, 'sales.write');
   const p = saleSchema.parse(input);
+  if (actor.role === 'daily_sales')
+    assert(
+      !p.customerId && !p.creditCustomer && !p.parkedId,
+      403,
+      'FORBIDDEN',
+      'Choose a walk-in sale',
+    );
   assert(
     new Set(p.lines.map((l) => l.productId)).size === p.lines.length,
     422,
@@ -197,7 +204,7 @@ export async function createSale(
           product.tax_bps,
         );
         const batches = await tx.query<Batch>(
-          "SELECT * FROM batches WHERE shop_id=$1 AND product_id=$2 AND quantity>0 AND (expiry_date IS NULL OR expiry_date >= COALESCE(($3::timestamptz AT TIME ZONE 'Asia/Colombo')::date,(now() AT TIME ZONE 'Asia/Colombo')::date)) AND ($4::uuid[] IS NULL OR id=ANY($4::uuid[])) ORDER BY expiry_date NULLS LAST,created_at,id FOR UPDATE",
+          "SELECT * FROM batches WHERE shop_id=$1 AND product_id=$2 AND quantity>0 AND (expiry_date IS NULL OR expiry_date >= COALESCE(($3::timestamptz AT TIME ZONE 'Asia/Colombo')::date,(now() AT TIME ZONE 'Asia/Colombo')::date)) AND branch=$5 AND ($4::uuid[] IS NULL OR id=ANY($4::uuid[])) ORDER BY expiry_date NULLS LAST,created_at,id FOR UPDATE",
           [
             actor.shopId,
             line.productId,
@@ -207,6 +214,7 @@ export async function createSale(
                   .filter((a) => a.productId === line.productId)
                   .map((a) => a.batchId)
               : null,
+            actor.branch ?? 'Kuruwita',
           ],
         );
         let remaining = line.quantity,
@@ -344,14 +352,17 @@ export async function createSale(
       let invoiceNumber: string;
       if (offline)
         invoiceNumber = `${offline.grant.shop.invoice_prefix ?? shop.invoice_prefix}-${p.operationId.toUpperCase()}`;
-      else {
+      else if (actor.branch === 'Parakaduwa') {
+        const [row] = await tx.query<{number:number}>("SELECT COUNT(*)::int+1 number FROM sales WHERE shop_id=$1 AND branch='Parakaduwa'",[actor.shopId]);
+        invoiceNumber = shop.invoice_prefix + '-P-' + String(row!.number).padStart(6,'0');
+      } else {
         invoiceNumber = `${shop.invoice_prefix}-${String(shop.next_invoice_number).padStart(6, '0')}`;
         await tx.query('UPDATE shops SET next_invoice_number=next_invoice_number+1 WHERE id=$1', [
           actor.shopId,
         ]);
       }
       await tx.query(
-        'INSERT INTO sales(id,shop_id,terminal_id,customer_id,cashier_id,subtotal,discount,tax,total,cost,credit,cash_tendered,change,due_date,invoice_number,bill_discount,customer_name,notes) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)',
+        'INSERT INTO sales(id,shop_id,terminal_id,customer_id,cashier_id,subtotal,discount,tax,total,cost,credit,cash_tendered,change,due_date,invoice_number,bill_discount,customer_name,notes,branch) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)',
         [
           p.operationId,
           actor.shopId,
@@ -371,6 +382,7 @@ export async function createSale(
           p.orderDiscount ?? 0,
           customer?.name ?? '',
           p.notes ?? '',
+          actor.branch ?? 'Kuruwita',
         ],
       );
       for (const entry of lines) {

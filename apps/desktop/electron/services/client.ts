@@ -8,6 +8,7 @@ import { CheckoutJournal } from '../database/journal';
 
 import {
   computerRoles,
+  branches,
   connectionSchema,
   postgresUrl,
   type ApiRequest,
@@ -96,6 +97,7 @@ const configPath = () => join(app.getPath('userData'), 'neon-connection.bin');
 const authPath = () => join(app.getPath('userData'), 'agripos-session.bin');
 const storedSchema = z.object({
   databaseUrl: postgresUrl,
+  branch: z.enum(branches).default('Kuruwita'),
   signingKey: z.string().min(32),
   role: z.enum(computerRoles).default('till'),
   backupUrl: postgresUrl.optional(),
@@ -128,6 +130,7 @@ export async function configure(input: unknown) {
   const signingKey = previous?.signingKey ?? randomUUID() + randomUUID();
   const started = await startEmbeddedApi({
     databaseUrl: config.databaseUrl,
+    branch: config.branch,
     signingKey,
     createDatabase: config.role === 'main',
     adminPassword: config.adminPassword,
@@ -140,6 +143,7 @@ export async function configure(input: unknown) {
       safeStorage.encryptString(
         JSON.stringify({
           databaseUrl: config.databaseUrl,
+    branch: config.branch,
           signingKey,
           role: config.role,
           backupUrl: config.backupUrl,
@@ -174,6 +178,7 @@ export async function ensureEmbeddedStarted() {
   if (!starting) {
     starting = startEmbeddedApi({
       databaseUrl: saved.databaseUrl,
+      branch: saved.branch,
       signingKey: saved.signingKey,
       createDatabase: saved.role === 'main',
     })
